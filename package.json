@@ -2,15 +2,17 @@
 	"name": "kirakira-rosales",
 	"version": "1.0.0",
 	"description": "KIRAKIRA-Rosales, The RESTful Back-end API created with Fastify.",
-	"main": "src/app.fastify.ts",
+	"main": "src/app.ts",
 	"type": "module",
 	"author": "KIRAKIRA Project Team",
 	"private": true,
 	"scripts": {
-		"start": "tsx src/app.fastify.ts",
-		"dev": "tsx src/app.fastify.ts",
-		"serve": "tsx src/app.fastify.ts",
+		"start": "tsc --noEmitOnError --sourceMap --outDir .kirakira && npm run copy-assets-dev && node ./.kirakira/app.js",
+		"dev": "tsx watch src/app.ts",
+		"serve": "npm start",
+		"dev-hot": "nodemon --watch src/**/* --delay 1500ms -e ts --exec npm start",
 		"build": "tsc --removeComments --declaration && npm run copy-assets-build",
+		"copy-assets-dev": "copyfiles -u 1 src/assets/**/* .kirakira/",
 		"copy-assets-build": "copyfiles -u 1 src/assets/**/* dist/"
 	},
 	"devDependencies": {
