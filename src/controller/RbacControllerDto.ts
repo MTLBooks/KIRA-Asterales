@@ -1,12 +1,12 @@
 /**
- * 通过 RBAC 检查用户的权限的参数
+ * RBAC permission check parameters
  */
 export type CheckUserRbacParams =
 	| { uuid: string; apiPath: string }
 	| { uid: number; apiPath: string };
 
 /**
- * 通过 RBAC 检查用户的权限的结果
+ * RBAC permission check result
  */
 export type CheckUserRbacResult = {
 	status: 200 | 403 | 500;
@@ -14,320 +14,320 @@ export type CheckUserRbacResult = {
 }
 
 /**
- * RBAC API 路径
+ * RBAC API path
  */
 type RbacApiPath = {
-	/** API 路径的 UUID - 非空 - 唯一 */
+	/** API path UUID - required - unique */
 	apiPathUuid: string;
-	/** API 路径 - 非空 - 唯一 */
+	/** API path - required - unique */
 	apiPath: string;
-	/** API 路径的类型 */
+	/** API path type */
 	apiPathType?: string;
-	/** API 路径的颜色 - 例子：#66CCFFFF */
+	/** API path color, e.g. #66CCFFFF */
 	apiPathColor?: string;
-	/** API 路径的描述 */
+	/** API path description */
 	apiPathDescription?: string;
-	/** API 路径创建者 - 非空 */
+	/** Creator UUID - required */
 	creatorUuid: string;
-	/** API 路径最后更新者 - 非空 */
+	/** Last editor UUID - required */
 	lastEditorUuid: string;
-	/** 系统专用字段-创建时间 - 非空 */
+	/** Creation time - required */
 	createDateTime: number;
-	/** 系统专用字段-最后编辑时间 - 非空 */
+	/** Last edit time - required */
 	editDateTime: number;
 }
 
 /**
- * RBAC API 路径的结果
+ * RBAC API path result
  */
 type RbacApiPathResult = RbacApiPath & {
-	/** 该路径是否已经被分配了至少一次 */
+	/** Whether this path has been assigned at least once */
 	isAssignedOnce: boolean;
 }
 
 /**
- * 创建 RBAC API 路径的请求载荷
+ * Create RBAC API path request
  */
 export type CreateRbacApiPathRequestDto = {
-	/** API 路径*/
+	/** API path */
 	apiPath: string;
-	/** API 路径的类型 */
+	/** API path type */
 	apiPathType?: string;
-	/** API 路径的颜色 - 例子：#66CCFFFF */
+	/** API path color, e.g. #66CCFFFF */
 	apiPathColor?: string;
-	/** API 路径的描述 */
+	/** API path description */
 	apiPathDescription?: string;
 }
 
 /**
- * 创建 RBAC API 路径的请求响应
+ * Create RBAC API path response
  */
 export type CreateRbacApiPathResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回创建的数据 */
+	/** Created record on success */
 	result?: RbacApiPathResult;
 }
 
 /**
- * 删除 RBAC API 路径的请求载荷
+ * Delete RBAC API path request
  */
 export type DeleteRbacApiPathRequestDto = {
-	/** API 路径*/
+	/** API path */
 	apiPath: string;
 }
 
 /**
- * 删除 RBAC API 路径的请求响应
+ * Delete RBAC API path response
  */
 export type DeleteRbacApiPathResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 该 API 路径是否已经绑定到角色（如果绑定了角色则无法删除） */
+	/** Whether this path is assigned to any role (cannot delete if true) */
 	isAssigned: boolean;
 }
 
 /**
- * 获取 API 路径的请求载荷
+ * Get RBAC API path request
  */
 export type GetRbacApiPathRequestDto = {
-	/** 搜索项 */
+	/** Search criteria */
 	search: {
-		/** API 路径*/
+		/** API path */
 		apiPath?: string;
-		/** API 路径的类型 */
+		/** API path type */
 		apiPathType?: string;
-		/** API 路径的颜色 - 例子：#66CCFFFF */
+		/** API path color, e.g. #66CCFFFF */
 		apiPathColor?: string;
-		/** API 路径的描述 */
+		/** API path description */
 		apiPathDescription?: string;
 	};
-	/** 分页查询 */
+	/** Pagination */
 	pagination: {
-		/** 当前在第几页 */
+		/** Current page */
 		page: number;
-		/** 一页显示多少条 */
+		/** Page size */
 		pageSize: number;
 	};
 }
 
 /**
- * 获取 API 路径的请求响应
+ * Get RBAC API path response
  */
 export type GetRbacApiPathResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回数据 */
+	/** Result list when success */
 	result?: RbacApiPathResult[];
-	/** 如果成功，返回合计数据 */
+	/** Total count when success */
 	count?: number;
 }
 
 /**
- * RBAC 角色
+ * RBAC role
  */
 type RbacRole = {
-	/** 角色的 UUID */
+	/** Role UUID */
 	roleUuid: string;
-	/** 角色的名字 */
+	/** Role name */
 	roleName: string;
-	/** 角色的类型 */
+	/** Role type */
 	roleType?: string;
-	/** 角色的颜色 - 例子：#66CCFFFF */
+	/** Role color, e.g. #66CCFFFF */
 	roleColor?: string;
-	/** 角色的描述 */
+	/** Role description */
 	roleDescription?: string;
-	/** 这个角色有哪些 API 路径的访问权 */
+	/** API path permissions of this role */
 	apiPathPermissions: string[];
-	/** API 路径创建者 - 非空 */
+	/** Creator UUID - required */
 	creatorUuid: string;
-	/** API 路径最后更新者 - 非空 */
+	/** Last editor UUID - required */
 	lastEditorUuid: string;
-	/** 系统专用字段-创建时间 - 非空 */
+	/** Creation time - required */
 	createDateTime: number;
-	/** 系统专用字段-最后编辑时间 - 非空 */
+	/** Last edit time - required */
 	editDateTime: number;
 }
 
 /**
- * 创建 RBAC 角色的请求载荷
+ * Create RBAC role request
  */
 export type CreateRbacRoleRequestDto = {
-	/** 角色的名字 */
+	/** Role name */
 	roleName: string;
-	/** 角色的类型 */
+	/** Role type */
 	roleType?: string;
-	/** 角色的颜色 - 例子：#66CCFFFF */
+	/** Role color, e.g. #66CCFFFF */
 	roleColor?: string;
-	/** 角色的描述 */
+	/** Role description */
 	roleDescription?: string;
 }
 
 /**
- * 创建 RBAC 角色的请求响应
+ * Create RBAC role response
  */
 export type CreateRbacRoleResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回创建的数据 */
+	/** Created record when success */
 	result?: RbacRole;
 }
 
 /**
- * 删除 RBAC 角色的请求载荷
+ * Delete RBAC role request
  */
 export type DeleteRbacRoleRequestDto = {
-	/** 角色的名字 */
+	/** Role name */
 	roleName: string;
 }
 
 /**
- * 删除 RBAC 角色的请求响应
+ * Delete RBAC role response
  */
 export type DeleteRbacRoleResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 获取 RBAC 角色的请求载荷
+ * Get RBAC role request
  */
 export type GetRbacRoleRequestDto = {
-	/** 搜索项 */
+	/** Search criteria */
 	search: {
-		/** 角色的名字 */
+		/** Role name */
 		roleName?: string;
-		/** 角色的类型 */
+		/** Role type */
 		roleType?: string;
-		/** 角色的颜色 - 例子：#66CCFFFF */
+		/** Role color, e.g. #66CCFFFF */
 		roleColor?: string;
-		/** 角色的描述 */
+		/** Role description */
 		roleDescription?: string;
 	};
-	/** 分页查询 */
+	/** Pagination */
 	pagination: {
-		/** 当前在第几页 */
+		/** Current page */
 		page: number;
-		/** 一页显示多少条 */
+		/** Page size */
 		pageSize: number;
 	};
 }
 
 /**
- * 获取 RBAC 角色的请求响应
+ * Get RBAC role response
  */
 export type GetRbacRoleResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回数据 */
+	/** Result list */
 	result?: (
 		& RbacRole
 		& { apiPathList: RbacApiPathResult[] }
 	)[];
-	/** 如果成功，返回合计数据 */
+	/** Total count */
 	count?: number;
 }
 
 /**
- * 为角色更新 API 路径权限的请求载荷
+ * Update API path permissions for a role request
  */
 export type UpdateApiPathPermissionsForRoleRequestDto = {
-	/** 角色的名字 */
+	/** Role name */
 	roleName: string;
-	/** 这个角色有哪些 API 路径的访问权 */
+	/** API path permissions */
 	apiPathPermissions: string[];
 }
 
 /**
- * 为角色更新 API 路径权限的请求响应
+ * Update API path permissions for a role response
  */
 export type UpdateApiPathPermissionsForRoleResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回数据 */
+	/** Updated role when success */
 	result?: RbacRole;
 }
 
 /**
- * 通过 UID 获取一个用户的角色的请求载荷
+ * Admin: get roles by UID request
  */
 export type AdminGetUserRolesByUidRequestDto = {
-	/** 用户的 UID */
+	/** UID */
 	uid: number;
 }
 
 /**
- * 通过 UID 获取一个用户的角色的请求响应
+ * Admin: get roles by UID response
  */
 export type AdminGetUserRolesByUidResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回数据 */
+	/** Result when success */
 	result?: {
-		/** 用户的 UID */
+		/** UID */
 		uid: number;
-		/** 用户的 UUID */
+		/** UUID */
 		uuid: string;
-		/** 用户名 */
+		/** Username */
 		username: string;
-		/** 用户昵称 */
+		/** Nickname */
 		userNickname: string;
-		/** 用户头像 */
+		/** Avatar */
 		avatar: string;
-		/** 用户的角色 */
+		/** Roles */
 		roles: RbacRole[];
 	};
 }
 
 /**
- * 管理员使用 UUID 更新用户角色
+ * Admin updates user roles by UUID
  */
 type AdminUpdateUserRoleByUUID = {
-	/** 要被更新角色的用户的 UUID，不带有 UID */
+	/** Target user UUID. Provide UUID only (no UID). */
   uuid: string;
   uid: never;
-	/** 新的角色 */
+	/** New roles */
   newRoles: string[];
 };
 
 /**
- * 管理员使用 UID 更新用户角色
+ * Admin updates user roles by UID
  */
 type AdminUpdateUserRoleByUID = {
-	/** 要被更新角色的用户的 UID，不带有 UUID */
+	/** Target user UID. Provide UID only (no UUID). */
   uid: number;
   uuid: never;
-	/** 新的角色 */
+	/** New roles */
   newRoles: string[];
 };
 
 /**
- * 管理员更新用户角色的请求载荷
+ * Admin update user role request
  */
 export type AdminUpdateUserRoleRequestDto = AdminUpdateUserRoleByUUID | AdminUpdateUserRoleByUID;
 
 /**
- * 管理员更新用户角色的请求响应
+ * Admin update user role response
  */
 export type AdminUpdateUserRoleResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }

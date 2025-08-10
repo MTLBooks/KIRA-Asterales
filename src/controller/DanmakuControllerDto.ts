@@ -1,64 +1,64 @@
 /**
- * 基础弹幕数据
+ * Basic danmaku data
  */
 type BasicDanmakuDto = {
-	/** 非空 - KVID 视频 ID */
+	/** Required - KVID */
 	videoId: number;
-	/** 非空 - 弹幕发送的时机，单位：秒（支持小数） */
+	/** Required - timestamp (seconds, supports decimals) */
 	time: number;
-	/** 非空 - 弾幕文本 */
+	/** Required - text */
 	text: string;
-	/** 非空 - 弾幕颜色 */
+	/** Required - color */
 	color: string;
-	/** 非空 - 弹幕字体大小，后端只存储三种数据，在前端再映射为 css 可用的像素值 */
+	/** Required - font size; backend stores three enum values, mapped to px on frontend */
 	fontSize: 'small' | 'medium' | 'large';
-	/** 非空 - 弹幕发射模式，默认 'rtl' —— 从右舷向西发射 */
+	/** Required - mode; default 'rtl' */
 	mode: 'ltr' | 'rtl' | 'top' | 'bottom';
-	/** 非空 - 是否启用彩虹弹幕，默认不启用 */
+	/** Required - enable rainbow effect */
 	enableRainbow: boolean;
 }
 
 /**
- * 发送弹幕的请求的数据
+ * Emit danmaku request
  */
 export type EmitDanmakuRequestDto = BasicDanmakuDto & {}
 
 /**
- * 发送弹幕的响应的数据
+ * Emit danmaku response
  */
 export type EmitDanmakuResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 发送成功的话，返回发送时的弹幕的数据 */
+	/** Echo of sent danmaku when success */
 	danmaku?: EmitDanmakuRequestDto;
 }
 
 /**
- * 获取视频的弹幕列表的请求的载荷
+ * Get danmaku list request
  */
 export type GetDanmakuByKvidRequestDto = {
-	/** 非空 - KVID 视频 ID */
+	/** Required - KVID */
 	videoId: number;
 }
 
 /**
- * 获取视频的弹幕列表的响应中的弹幕
+ * Danmaku item in response
  */
 export type GetDanmakuByKvidDto = BasicDanmakuDto & {
-	/** 弹幕最后编辑时间 */
+	/** Last edit time */
 	editDateTime: number;
 }
 
 /**
- * 获取视频的弹幕列表的响应
+ * Get danmaku list response
  */
 export type GetDanmakuByKvidResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 发送成功的话，返回弹幕的数据列表（不包含用户 ID，包含最后编辑时间） */
+	/** Danmaku list (without user id; includes last edit time) */
 	danmaku?: (GetDanmakuByKvidDto & { isBlockedByOther?: boolean })[];
 }

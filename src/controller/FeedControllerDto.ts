@@ -4,290 +4,290 @@ import { ThumbVideoResponseDto } from "./VideoControllerDto.js"
 const ONLY_IN_TS_FILE = Symbol("ONLY_IN_TS_FILE") // WARN: DO NOT RENAME THIS FILE AS `*.d.ts`
 void ONLY_IN_TS_FILE
 
-/** 关注的类型 */
+/** Following types */
 export enum FOLLOWING_TYPE {
-	/** 通过视频页面或者用户页面等页面的关注按钮正常关注 */
+	/** Follow normally via buttons on pages like video/user */
 	normal = 'normal',
-	/** 自动关注 */ // MEME: really?
+	/** Auto follow */ // MEME: really?
 	auto = 'auto',
-	/** 通过活动页面关注 */
+	/** Follow via event page */
 	event = 'event',
-	/** 通过活动页面自动批量关注 */
+	/** Auto-batch follow via event page */
 	eventAutoBatch = 'eventAutoBatch',
 }
 
 /**
- * 用户关注一个创作者的请求载荷
+ * Follow uploader request
  */
 export type FollowingUploaderRequestDto = {
-	/** 被关注者 UID */
+	/** UID to follow */
 	followingUid: number;
 };
 
 /**
- * 用户关注一个创作者的请求响应
+ * Follow uploader response
  */
 export type FollowingUploaderResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 };
 
 /**
- * 用户取消关注一个创作者的请求载荷
+ * Unfollow uploader request
  */
 export type UnfollowingUploaderRequestDto = {
-	/** 取消关注者 UID */
+	/** UID to unfollow */
 	unfollowingUid: number;
 };
 
 /**
- * 用户取消关注一个创作者的请求响应
+ * Unfollow uploader response
  */
 export type UnfollowingUploaderResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 };
 
 /**
- * 动态分组
+ * Feed group
  */
 type FeedGroup = {
-	/** 动态分组的 UUID - 非空 */
+	/** Feed group UUID - required */
 	feedGroupUuid: string,
-	/** 动态分组的名称 - 非空 */
+	/** Feed group name - required */
 	feedGroupName: string,
-	/** 动态分组创建者 UUID - 非空 */
+	/** Creator UUID - required */
 	feedGroupCreatorUuid: string,
-	/** 动态分组中的用户 - 非空 */
+	/** User UUIDs in the group - required */
 	uuidList: string[],
-	/** 动态分组的自定义封面 */
+	/** Custom cover */
 	customCover?: string,
-	/** 系统专用字段-最后编辑时间 - 非空 */
+	/** Last edit time - required */
 	editDateTime: number,
-	/** 系统专用字段-创建时间 - 非空 */
+	/** Creation time - required */
 	createDateTime: number,
 }
 
 /**
- * 创建动态分组的请求载荷
+ * Create feed group request
  */
 export type CreateFeedGroupRequestDto = {
-	/** 动态分组的名字 */
+	/** Group name */
 	feedGroupName: string;
-	/** 创建动态分组时包含 UID 列表 */
+	/** Optional initial UID list */
 	withUidList?: number[];
-	/** 创建动态分组时包含自定义动态分组封面 */
+	/** Optional custom cover URL */
 	withCustomCoverUrl?: string;
 };
 
 /**
- * 创建动态分组的请求响应
+ * Create feed group response
  */
 export type CreateFeedGroupResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 一次添加了太多 UID */
+	/** Too many UIDs added at once */
 	tooManyUidInOnce: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 };
 
 /**
- * 向某一个动态分组中添加 UID 的请求载荷
+ * Add UIDs to a feed group request
  */
 export type AddNewUid2FeedGroupRequestDto = {
-	/** 动态分组的 UUID */
+	/** Feed group UUID */
 	feedGroupUuid: string;
-	/** 要新增的 UID 列表 */
+	/** UIDs to add */
 	uidList: number[];
 }
 
 /**
- * 向某一个动态分组中添加 UID 的请求响应
+ * Add UIDs to a feed group response
  */
 export type AddNewUid2FeedGroupResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 一次添加了太多 UID */
+	/** Too many UIDs added at once */
 	tooManyUidInOnce: boolean;
-	/** 动态分组中有太多 UID */
+	/** Group overload */
 	isOverload: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果修改成功，返回动态分组 */
+	/** Group when success */
 	feedGroupResult?: FeedGroup
 }
 
 /**
- * 从一个动态分组中移除 UID 的请求载荷
+ * Remove UIDs from a feed group request
  */
 export type RemoveUidFromFeedGroupRequestDto = {
-	/** 动态分组的 UUID */
+	/** Feed group UUID */
 	feedGroupUuid: string;
-	/** 要移除的 UID 列表 */
+	/** UIDs to remove */
 	uidList: number[];
 }
 
 /**
- * 从一个动态分组中移除 UID 的请求响应
+ * Remove UIDs from a feed group response
  */
 export type RemoveUidFromFeedGroupResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 一次添加了太多 UID */
+	/** Too many UIDs added at once */
 	tooManyUidInOnce: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果修改成功，返回动态分组 */
+	/** Group when success */
 	feedGroupResult?: FeedGroup
 };
 
 /**
- * 删除动态分组的请求载荷
+ * Delete feed group request
  */
 export type DeleteFeedGroupRequestDto = {
-	/** 要删除动态分组的 UUID */
+	/** Feed group UUID */
 	feedGroupUuid: string;
 }
 
 /**
- * 删除动态分组的请求响应
+ * Delete feed group response
  */
 export type DeleteFeedGroupResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
-* 获取用于上传动态分组封面图的预签名 URL 的请求响应
-*/
+ * Get pre-signed URL for feed group cover upload response
+ */
 export type GetFeedGroupCoverUploadSignedUrlResponseDto = {
-	/** 请求是否成功，成功返回 true，否则返回 false */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 请求到的视频封面图上传预签名 URL 数据 */
+	/** Result */
 	result?: {
-		/** 预签名 URL */
+		/** Signed URL */
 		signedUrl: string;
-		/** 文件名 */
+		/** File name */
 		fileName: string;
 	};
 }
 
 /**
- * 删除动态分组的请求载荷
+ * Create or edit feed group info request
  */
 export type CreateOrEditFeedGroupInfoRequestDto = {
-	/** 要删除动态分组的 UUID */
+	/** Feed group UUID */
 	feedGroupUuid: string;
-	/** 动态分组的名字 */
+	/** Group name */
 	feedGroupName?: string;
-	/** 创建动态分组时包含自定义动态分组封面 */
+	/** Custom cover URL */
 	feedGroupCustomCoverUrl?: string;
 }
 
 /***
- * 创建或更新动态分组信息的请求响应
+ * Create or edit feed group info response
  */
 export type CreateOrEditFeedGroupInfoResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回动态分组 */
+	/** Group when success */
 	feedGroupResult?: FeedGroup
 }
 
 /**
- * 管理员通过动态分组信息更新审核的请求载荷
+ * Admin approve feed group info change request
  */
 export type AdministratorApproveFeedGroupInfoChangeRequestDto = {
-	/** 动态分组的 UUID */
+	/** Feed group UUID */
 	feedGroupUuid: string;
 }
 
 /**
- * 管理员通过动态分组信息更新审核的请求响应
+ * Admin approve feed group info change response
  */
 export type AdministratorApproveFeedGroupInfoChangeResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 管理员删除动态分组的请求载荷
+ * Admin delete feed group request
  */
 export type AdministratorDeleteFeedGroupRequestDto = {
-	/** 动态分组的 UUID */
+	/** Feed group UUID */
 	feedGroupUuid: string;
 }
 
 /**
- * 管理员删除动态分组的请求响应
+ * Admin delete feed group response
  */
 export type AdministratorDeleteFeedGroupResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 获取动态分组的请求响应
+ * Get feed group list response
  */
 export type GetFeedGroupListResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 结果 */
+	/** Result */
 	result?: FeedGroup[];
 }
 
 /**
- * 获取动态内容的请求载荷
+ * Get feed content request
  */
 export type GetFeedContentRequestDto = {
 	feedGroupUuid?: string;
-	/** 分页查询 */
+	/** Pagination */
 	pagination: {
-		/** 当前在第几页 */
+		/** Current page */
 		page: number;
-		/** 一页显示多少条 */
+		/** Page size */
 		pageSize: number;
 	};
 }
 
 /**
- * 获取动态内容的请求响应
+ * Get feed content response
  */
 export type GetFeedContentResponseDto = {
-	/** 执行结果 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 用户是否没有关注其他用户，或者动态分组中没有用户 */
+	/** Whether user is lonely (no following or no users in group) */
 	isLonely: false | {
-		/** 没有关注其他用户 */
+		/** Has no following */
 		noFollowing: boolean;
 	} | {
-		/** 动态分组中没有用户 */
+		/** No users in feed group */
 		noUserInFeedGroup: boolean;
 	};
-	/** 请求结果 */
+	/** Result */
 	result?: {
-		/** 内容数量 */
+		/** Count */
 		count: number;
-		/** 内容 */
+		/** Content */
 		content: ThumbVideoResponseDto['videos'];
 	};
 }

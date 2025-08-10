@@ -1,0 +1,22 @@
+Koa usage migration TODO list
+
+- src/app.ts
+  - imports: koa, koa-bodyparser
+
+- src/route/router.ts
+  - imports: koa-router
+
+- src/type/koaTypes.d.ts
+  - imports: koa
+
+Fastify full migration tasks
+
+- Implement native Fastify handlers (no adapter) for:
+  - User: login, self, adminGetUserInfo (first batch)
+  - Then port remaining controllers sequentially
+- Add RBAC Fastify plugin with preHandler guards
+- Update routes to use native handlers + RBAC guards
+- Remove calls to isPassRbacCheck from controllers
+- Ensure comments are English-only; translate any Chinese comments
+- Match request/response DTOs exactly as current behavior
+- Remove Koa files and dependencies after all routes are ported 

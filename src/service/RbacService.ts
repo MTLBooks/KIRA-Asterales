@@ -83,6 +83,12 @@ export const checkUserByRbac = async (params: CheckUserRbacParams): Promise<Chec
  */
 export const isPassRbacCheck = async (params: CheckUserRbacParams, ctx: koaCtx): Promise<boolean> => {
 	try {
+		// Dev bypass: allow disabling RBAC checks via environment variable
+		if (process.env.RBAC_DISABLE === 'true') {
+			console.warn('WARN', 'RBAC disabled by environment variable RBAC_DISABLE=true, allowing access to', ctx.path)
+			return true
+		}
+
 		const rbacCheckResult = await checkUserByRbac(params)
 		const { status: rbacStatus, message: rbacMessage } = rbacCheckResult
 		if (rbacStatus !== 200) {

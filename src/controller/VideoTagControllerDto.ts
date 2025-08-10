@@ -1,83 +1,82 @@
 /**
- * 视频 TAG 名
+ * Video TAG name
  */
 type VideoTagNameSchema = {
-	/** TAG 名称 - 非空 */
+	/** TAG name - required */
 	name: string;
-	/** 是否为该语言默认名 - 非空 */
+	/** Whether this is the default name under this language - required */
 	isDefault: boolean;
-	/** 是否为 TAG 原名 - 非空 */
+	/** Whether this is the original TAG name - required */
 	isOriginalTagName: boolean;
 }
 
 /**
- * 不同语言所对应的 TAG 名
+ * Multilingual TAG names
  */
 type MultilingualVideoTagNameSchema = {
-	/** TAG 的语言 - 非空，原则上应该唯一 // WARN: 无法指定指定子文档的唯一索引，只能在业务上避免并做校验 */
+	/** Language code of the TAG - required; should be unique in business logic */
 	lang: string;
-	/** 不同语言所对应的 TAG 名 */
+	/** TAG names under this language */
 	tagName: VideoTagNameSchema[];
 }
 
 /**
- * 创建视频 TAG 的请求载荷
+ * Create video TAG request payload
  */
 export type CreateVideoTagRequestDto = {
-	/** 不同语言所对应的 TAG 名 */
+	/** Multilingual TAG names */
 	tagNameList: MultilingualVideoTagNameSchema[];
 }
 
 /**
- * 视频 TAG 的类型
+ * Video TAG entity
  */
 export type VideoTag = {
 	/** TAG ID */
 	tagId: number;
-	/** 不同语言所对应的 TAG 名 */
+	/** Multilingual TAG names */
 	tagNameList: MultilingualVideoTagNameSchema[];
 }
 
 /**
- * 创建视频 TAG 的请求响应
+ * Create video TAG response
  */
 export type CreateVideoTagResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回创建的这个 TAG 的信息 */
+	/** Created TAG on success */
 	result?: VideoTag;
 }
 
-
 /**
- * 搜索视频 TAG 的请求载荷
+ * Search video TAG request payload
  */
 export type SearchVideoTagRequestDto = {
-	/** TAG 名搜索关键词 */
+	/** Search keyword for TAG name */
 	tagNameSearchKey: string;
 }
 
 /**
- * 搜索视频 TAG 的请求响应
+ * Search video TAG response
  */
 export type SearchVideoTagResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回匹配到的 TAG 信息 */
+	/** Matched TAGs on success */
 	result?: VideoTag[];
 }
 
 /**
- * 根据视频 TAG ID 搜索视频的请求载荷
+ * Get video TAGs by TAG IDs request payload
  */
 export type GetVideoTagByTagIdRequestDto = {
-	/** TAG ID */
+	/** TAG IDs */
 	tagId: number[];
 }
 
-/** 通过视频 TAG ID 获取视频的请求响应 */
+/** Response for getting video TAGs by TAG IDs */
 export type GetVideoTagByTagIdResponseDto = SearchVideoTagResponseDto & {}

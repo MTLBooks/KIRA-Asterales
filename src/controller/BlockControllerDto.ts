@@ -1,302 +1,302 @@
 import { type VideoTag } from "./VideoTagControllerDto.js";
 
 /**
- * 屏蔽用户的请求载荷
+ * Block user request payload
  */
 export type BlockUserByUidRequestDto = {
-	/** 被屏蔽的用户的 UID - 非空 */
+	/** UID to block - required */
 	blockUid: number;
 }
 
 /**
- * 屏蔽用户的请求响应
+ * Block user response
  */
 export type BlockUserByUidResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 隐藏用户的请求载荷
+ * Hide user request payload
  */
 export type HideUserByUidRequestDto = {
-	/** 被隐藏的用户的 UID - 非空 */
+	/** UID to hide - required */
 	hideUid: number;
 }
 
 /**
- * 隐藏用户的请求响应
+ * Hide user response
  */
 export type HideUserByUidResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 屏蔽标签的请求载荷
+ * Block tag request payload
  */
 export type BlockTagRequestDto = {
-	/* 屏蔽的标签 ID - 非空 */
+	/* Tag ID to block - required */
 	tagId: number;
 }
 
 /**
- * 屏蔽标签的请求响应
+ * Block tag response
  */
 export type BlockTagResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 屏蔽关键词的请求载荷
+ * Block keyword request payload
  */
 export type BlockKeywordRequestDto = {
-	/* 屏蔽的关键词 - 非空 */
+	/* Keyword to block - required */
 	blockKeyword: string;
 }
 
 /**
- * 屏蔽关键词的请求响应
+ * Block keyword response
  */
 export type BlockKeywordResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 添加正则表达式的请求载荷
+ * Add regex request payload
  */
 export type AddRegexRequestDto = {
-	/** 正则表达式 - 非空 */
+	/** Regular expression - required */
 	blockRegex: string;
-	/** 正则表达式的标志 - 非空 */
+	/** Regular expression flags - required */
 	// flag: string;
 }
 
 /**
- * 添加正则表达式的请求响应
+ * Add regex response
  */
 export type AddRegexResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 用户是否输入了一个不安全的正则表达式 */
+	/** Whether the regex is unsafe */
 	unsafeRegex: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 取消屏蔽用户的请求载荷
+ * Unblock user request payload
  */
 export type UnblockUserByUidRequestDto = {
-	/** 被屏蔽的用户的 UID - 非空 */
+	/** UID to unblock - required */
 	blockUid: number;
 }
 
 /**
- * 取消屏蔽用户的请求响应
+ * Unblock user response
  */
 export type UnblockUserByUidResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 显示用户的请求载荷
+ * Show user request payload (undo hide)
  */
 export type ShowUserByUidRequestDto = {
-	/** 被显示的用户的 UID - 非空 */
+	/** UID to show - required */
 	hideUid: number;
 }
 
 /**
- * 显示用户的请求响应
+ * Show user response
  */
 export type ShowUserByUidResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 取消屏蔽标签的请求载荷
+ * Unblock tag request payload
  */
 export type UnblockTagRequestDto = {
-	/* 屏蔽的标签 ID - 非空 */
+	/* Tag ID to unblock - required */
 	tagId: number;
 }
 
 /**
- * 取消屏蔽标签的请求响应
+ * Unblock tag response
  */
 export type UnblockTagResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 取消屏蔽关键词的请求载荷
+ * Unblock keyword request payload
  */
 export type UnblockKeywordRequestDto = {
-	/** 屏蔽的关键词 - 非空 */
+	/** Keyword to unblock - required */
 	blockKeyword: string;
 }
 
 /**
- * 删除正则表达式的请求载荷
+ * Remove regex request payload
  */
 export type RemoveRegexRequestDto = {
-	/** 正则表达式 - 非空 */
+	/** Regular expression - required */
 	blockRegex: string;
-	/** 正则表达式的标志 - 非空 */
+	/** Regular expression flags - required */
 	// flag: string;
 }
 
 /**
- * 删除正则表达式的请求响应
+ * Remove regex response
  */
 export type RemoveRegexResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 取消屏蔽关键词的请求响应
+ * Unblock keyword response
  */
 export type UnblockKeywordResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
 }
 
 /**
- * 获取屏蔽用户列表的请求载荷
+ * Get block list request payload
  */
 export type GetBlockListRequestDto = {
-	/** 屏蔽的类型 - 非空 */
+	/** Block type - required */
 	type: string;
-	/** 分页查询 */
+	/** Pagination */
 	pagination: {
-		/** 当前在第几页 */
+		/** Current page */
 		page: number;
-		/** 一页显示多少条 */
+		/** Page size */
 		pageSize: number;
 	};
 }
 
 export type GetBlocklistResult = {
-	/** 屏蔽类型 */
+	/** Type */
 	type: string;
-	/** 屏蔽值 */
+	/** Value */
 	value: string;
-	/** 屏蔽时间 */
+	/** Block create time */
 	createDateTime: number;
-	/** 被屏蔽用户 UID */
+	/** Blocked user UID */
 	uid?: number;
-	/** 被屏蔽用户名 */
+	/** Blocked username */
 	username?: string;
-	/** 被屏蔽用户昵称 */
+	/** Blocked user nickname */
 	userNickname?: string;
-	/** 被屏蔽用户头像 */
+	/** Blocked user avatar */
 	avatar?: string;
-	/** 被屏蔽的 TAG */
+	/** Blocked TAG */
 	tag?: VideoTag;
 }
 
 /**
- * 获取屏蔽用户列表的请求响应
+ * Get block list response
  */
 export type GetBlockListResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 黑名单数量 */
+	/** Count */
 	blocklistCount?: number;
-	/** 屏蔽用户列表 */
+	/** Results */
 	result?: GetBlocklistResult[];
 }
 
 /**
- * 检查内容是否被屏蔽的请求载荷
+ * Check content is blocked request payload
  */
 export type CheckContentIsBlockedRequestDto = {
-	/** 检查的内容 */
+	/** Content */
 	content: string;
 }
 
 /**
- * 检查标签是否被屏蔽的请求载荷
+ * Check tag is blocked request payload
  */
 export type CheckTagIsBlockedRequestDto = {
-	/** 检查的标签 ID */
+	/** TAG IDs */
 	tagId: number[];
 }
 
 /**
- * 检查用户是否被屏蔽的请求载荷
+ * Check user is blocked request payload
  */
 export type CheckUserIsBlockedRequestDto = {
-	/** 检查的用户 UID */
+	/** Target UID */
 	uid: number;
 }
 
 /**
- * 检测是否被其他用户屏蔽的请求载荷
+ * Check if blocked by other user request payload
  */
 export type CheckIsBlockedByOtherUserRequestDto = {
-	/** 检查的内容 */
+	/** Target UID */
 	targetUid: number;
 }
 
-/** 检测是否被其他用户屏蔽的请求响应 */
+/** Response: check if blocked by other user */
 export type CheckIsBlockedByOtherUserResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 是否被屏蔽 */
+	/** Is blocked */
 	isBlocked: boolean;
 }
 /**
- * 检查是否被屏蔽的请求响应
+ * Check if blocked response
  */
 export type CheckIsBlockedResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 是否被屏蔽 */
+	/** Is blocked */
 	isBlocked: boolean;
 }
 
 /**
- * 检查用户是否被屏蔽的请求响应
+ * Check user is blocked response
  */
 export type CheckUserIsBlockedResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 是否被屏蔽 */
+	/** Is blocked */
 	isBlocked: boolean;
-	/** 是否被隐藏 */
+	/** Is hidden */
 	isHidden: boolean;
 }

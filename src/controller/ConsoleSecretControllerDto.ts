@@ -1,12 +1,12 @@
 /**
- * 获取预生产环境后端环境变量机密的请求响应
+ * Get staging backend environment secrets response
  */
 export type GetStgEnvBackEndSecretResponse = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 预生产环境后端环境变量机密 */
+	/** Secrets */
 	result: {
 		envs?: Record<string, string>;
 	};

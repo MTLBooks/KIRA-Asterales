@@ -1,63 +1,63 @@
 import { ThumbVideoResponseDto } from './VideoControllerDto.js'
 
 /**
- * 浏览的内容的类型
+ * Browsed content category
  */
 export type BrowsingHistoryCategory = 'video' | 'photo' | 'comment'
 
 /**
- * 用户浏览历史
+ * User browsing history
  */
 type BrowsingHistory = {
-	/** 用户的 UUID - 非空 */
+	/** User UUID - required */
 	uuid: string;
-	/** 浏览的内容的类型，比如说 video, photo 等 - 非空 */
+	/** Content category, e.g. video, photo - required */
 	category: BrowsingHistoryCategory;
-	/** 浏览的内容的唯一 ID - 非空 */
+	/** Content unique ID - required */
 	id: string;
-	/** 浏览的定位锚点，如果是视频就是播放时间，如果是相册可能是上次浏览到相册第n张图片，为了兼容性使用 String */
+	/** Anchor (e.g. playback time for video; use string for compatibility) */
 	anchor?: string;
 }
 
 /**
- * 创建用户浏览历史的请求载荷
+ * Create or update browsing history request payload
  */
 export type CreateOrUpdateBrowsingHistoryRequestDto = BrowsingHistory & {}
 
 /**
- * 创建用户浏览历史的请求响应
+ * Create or update browsing history response
  */
 export type CreateOrUpdateBrowsingHistoryResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回创建的这个浏览历史数据 */
+	/** Created/updated history on success */
 	result?: BrowsingHistory;
 }
 
 /**
- * 获取用户浏览历史的请求载荷
- * 主要是用爱装过滤条件
+ * Get browsing history (with optional filters) request
+ * Mainly used to apply filter conditions
  */
 export type GetUserBrowsingHistoryWithFilterRequestDto = {
-	/** 过滤条件 - 视频标题 */
+	/** Filter by video title */
 	videoTitle?: string;
 }
 
 /**
- * 获取用户浏览历史的请求响应，全部或过滤后的用户浏览历史
+ * Get browsing history (all or filtered) response
  */
 export type GetUserBrowsingHistoryWithFilterResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回创建的这个浏览历史数据 */
+	/** History list */
 	result?: (
 		& BrowsingHistory
 		& {
-			/** 最后更新时间 */
+			/** Last update time */
 			lastUpdateDateTime: number;
 		}
 		& ThumbVideoResponseDto['videos'][number])[];

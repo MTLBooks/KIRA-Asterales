@@ -1,64 +1,64 @@
 /**
- * 浏览的内容的类型
+ * Browsed content category
  */
 export type BrowsingHistoryCategory = 'video' | 'photo' | 'comment'
 
 /**
- * 收藏夹
+ * Favorites entity
  */
 type Favorites = {
-	/** 收藏夹唯一 ID - 非空 - 唯一 */
+	/** Favorites ID - required - unique */
 	favoritesId: number;
-	/** 收藏夹创建者 - 非空 */
+	/** Creator UID - required */
 	creator: number;
-	/** 收藏夹其他维护者 */
+	/** Other editors */
 	editor?: number[];
-	/** 收藏夹标题 - 非空 */
+	/** Title - required */
 	favoritesTitle: string;
-	/** 收藏夹简介 */
+	/** Description */
 	favoritesBio?: string;
-	/** 收藏夹封面 */
+	/** Cover image URL */
 	favoritesCover?: string;
-	/** 收藏夹可见性 - 非空 - 1 公开，0 仅关注者，-1 私有‘ */
+	/** Visibility - required - 1 public, 0 followers, -1 private */
 	favoritesVisibility: number;
-	/** 收藏夹创建时间 - 非空 */
+	/** Creation time - required */
 	favoritesCreateDateTime: number;
 }
 
 /**
- * 创建收藏夹的请求载荷
+ * Create favorites request
  */
 export type CreateFavoritesRequestDto = {
-	/** 收藏夹标题 - 非空 */
+	/** Title - required */
 	favoritesTitle: string;
-	/** 收藏夹简介 */
+	/** Description */
 	favoritesBio?: string;
-	/** 收藏夹封面 */
+	/** Cover image URL */
 	favoritesCover?: string;
-	/** 收藏夹的可见性 - 非空 */
+	/** Visibility - required */
 	favoritesVisibility: number;
 }
 
 /**
- * 创建收藏夹的请求响应
+ * Create favorites response
  */
 export type CreateFavoritesResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回创建的这个收藏夹数据 */
+	/** Created favorites */
 	result?: Favorites;
 }
 
 /**
- * 获取某个用户的收藏夹
+ * Get user's favorites response
  */
 export type GetFavoritesResponseDto = {
-	/** 是否请求成功 */
+	/** Execution result */
 	success: boolean;
-	/** 附加的文本消息 */
+	/** Extra message */
 	message?: string;
-	/** 如果成功，返回用户所有的收藏夹 */
+	/** Favorites list */
 	result?: Favorites[];
 }
