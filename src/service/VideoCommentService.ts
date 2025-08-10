@@ -10,68 +10,68 @@ import { buildBlockListMongooseFilter } from './BlockService.js'
 import { checkVideoBlockedByKvidService } from './VideoService.js'
 
 /**
- * 用户发送视频评论
- * @param emitVideoCommentRequest 用户发送的弹幕数据
- * @param uid cookie 中的用户 ID
- * @param token cookie 中的用户 token
- * @returns 用户发送弹幕的结果
+ * Emit video comment
+ * @param emitVideoCommentRequest Request payload
+ * @param uid cookie user ID
+ * @param token cookie user token
+ * @returns Emit result
  */
 export const emitVideoCommentService = async (emitVideoCommentRequest: EmitVideoCommentRequestDto, uuid: string, token: string): Promise<EmitVideoCommentResponseDto> => {
 	try {
 		if (!checkEmitVideoCommentRequest(emitVideoCommentRequest)) {
-			console.error('ERROR', '视频评论发送失败，弹幕数据校验未通过：', { videoId: emitVideoCommentRequest.videoId, uuid })
-			return { success: false, message: '视频评论发送失败，视频评论数据错误' }
+			console.error('ERROR', 'Emit comment failed: payload validation failed', { videoId: emitVideoCommentRequest.videoId, uuid })
+			return { success: false, message: 'Emit comment failed: invalid data' }
 		}
 		
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '视频评论发送失败，用户校验未通过', { videoId: emitVideoCommentRequest.videoId, uuid })
-			return { success: false, message: '视频评论发送失败，用户校验未通过' }
+			console.error('ERROR', 'Emit comment failed: user verification failed', { videoId: emitVideoCommentRequest.videoId, uuid })
+			return { success: false, message: 'Emit comment failed: user verification failed' }
 		}
 
 		if (!uuid) {
-			console.error('ERROR', '评论发送失败，UUID 不存在', { uuid })
-			return { success: false, message: '评论发送失败，UUID 不存在' }
+			console.error('ERROR', 'Emit comment failed: UUID not found', { uuid })
+			return { success: false, message: 'Emit comment failed: UUID not found' }
 		}
 
 		const uid = await getUserUid(uuid)
 		if (uid === undefined || uid === null || uid < 1) {
-			console.error('ERROR', '评论发送失败，获取发送者 UID 失败。', { uuid })
-			return { success: false, message: '评论发送失败，获取发送者 UID 失败。' }
+			console.error('ERROR', 'Emit comment failed: cannot get sender UID', { uuid })
+			return { success: false, message: 'Emit comment failed: cannot get sender UID' }
 		}
 
-		// 检查视频是否被屏蔽
+		// Check video block status
 		const { videoId } = emitVideoCommentRequest
 		const selectorUuid = uuid
 		const selectorToken = token
 
 		const checkVideoBlockedResult = await checkVideoBlockedByKvidService(videoId, selectorUuid, selectorToken)
 		if (!checkVideoBlockedResult.success) {
-			console.error('ERROR', '评论发送失败，检查视频是否被屏蔽失败', { uuid })
-			return { success: false, message: '评论发送失败，检查视频是否被屏蔽失败' }
+			console.error('ERROR', 'Emit comment failed: check block failed', { uuid })
+			return { success: false, message: 'Emit comment failed: check block failed' }
 		}
 
 		if (checkVideoBlockedResult.isBlockedByOther) {
-			console.error('ERROR', '评论发送失败，用户被其他用户屏蔽', { uuid })
-			return { success: false, message: '评论发送失败，用户被其他用户屏蔽' }
+			console.error('ERROR', 'Emit comment failed: blocked by other user', { uuid })
+			return { success: false, message: 'Emit comment failed: blocked by other user' }
 		}
 		if (checkVideoBlockedResult.isBlocked) {
-			console.error('ERROR', '评论发送失败，用户已屏蔽上传者', { uuid })
-			return { success: false, message: '评论发送失败，用户已屏蔽上传者' }
+			console.error('ERROR', 'Emit comment failed: uploader is blocked', { uuid })
+			return { success: false, message: 'Emit comment failed: uploader is blocked' }
 		}
 
-		// 启动事务
+		// Start transaction
 		const session = await mongoose.startSession()
 		session.startTransaction()
 
-		const getCommentIndexResult = await getNextSequenceValueService(`KVID-${emitVideoCommentRequest.videoId}`, 1, 1, session) // 以视频 ID 为键，获取下一个值，即评论楼层
+		const getCommentIndexResult = await getNextSequenceValueService(`KVID-${emitVideoCommentRequest.videoId}`, 1, 1, session) // next value as comment floor
 		const commentIndex = getCommentIndexResult.sequenceValue
 		if (!getCommentIndexResult.success || commentIndex === undefined || commentIndex === null) {
 			if (session.inTransaction()) {
 				await session.abortTransaction()
 			}
 			session.endSession()
-			console.error('ERROR', '视频评论发送失败，获取楼层数据失败，无法根据视频 ID 获取序列下一个值', { videoId: emitVideoCommentRequest.videoId, uid })
-			return { success: false, message: '视频评论发送失败，获取楼层数据失败' }
+			console.error('ERROR', 'Emit comment failed: cannot get comment floor by video ID', { videoId: emitVideoCommentRequest.videoId, uid })
+			return { success: false, message: 'Emit comment failed: cannot get floor data' }
 		}
 
 		const { collectionName, schemaInstance } = VideoCommentSchema
@@ -98,8 +98,8 @@ export const emitVideoCommentService = async (emitVideoCommentRequest: EmitVideo
 					await session.abortTransaction()
 				}
 				session.endSession()
-				console.error('ERROR', '视频评论发送失败，未返回结果', { videoId: emitVideoCommentRequest.videoId, uid })
-				return { success: false, message: '视频评论发送失败，存储视频评论数据失败' }
+				console.error('ERROR', 'Emit comment failed: insert returned empty', { videoId: emitVideoCommentRequest.videoId, uid })
+				return { success: false, message: 'Emit comment failed: save failed' }
 			}
 
 			const getUserInfoByUidRequest: GetUserInfoByUidRequestDto = { uid: videoComment.uid }
@@ -111,8 +111,8 @@ export const emitVideoCommentService = async (emitVideoCommentRequest: EmitVideo
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.warn('WARN', 'WARNING', '视频评论发送成功，但是获取回显数据为空', { videoId: emitVideoCommentRequest.videoId, uid })
-					return { success: false, message: '视频评论发送成功，请尝试刷新页面' }
+					console.warn('WARN', 'WARNING', 'Emit comment success, but echo data is empty', { videoId: emitVideoCommentRequest.videoId, uid })
+					return { success: false, message: 'Emit comment success, please refresh the page' }
 				}
 
 				const videoCommentResult: VideoCommentResult = {
@@ -131,46 +131,46 @@ export const emitVideoCommentService = async (emitVideoCommentRequest: EmitVideo
 				}
 				await session.commitTransaction()
 				session.endSession()
-				return { success: true, message: '视频评论发送成功！', videoComment: videoCommentResult }
+				return { success: true, message: 'Emit comment success', videoComment: videoCommentResult }
 			} catch (error) {
 				if (session.inTransaction()) {
 					await session.abortTransaction()
 				}
 				session.endSession()
-				console.warn('WARN', 'WARNING', '视频评论发送成功，但是获取回显数据失败', error, { videoId: emitVideoCommentRequest.videoId, uid })
-				return { success: false, message: '视频评论发送成功，请刷新页面' }
+				console.warn('WARN', 'WARNING', 'Emit comment success, but failed to get echo data', error, { videoId: emitVideoCommentRequest.videoId, uid })
+				return { success: false, message: 'Emit comment success, please refresh the page' }
 			}
 		} catch (error) {
 			if (session.inTransaction()) {
 				await session.abortTransaction()
 			}
 			session.endSession()
-			console.error('ERROR', '视频评论发送失败，无法存储到 MongoDB', error, { videoId: emitVideoCommentRequest.videoId, uid })
-			return { success: false, message: '视频评论发送失败，存储视频评论数据失败' }
+			console.error('ERROR', 'Emit comment failed: cannot save to MongoDB', error, { videoId: emitVideoCommentRequest.videoId, uid })
+			return { success: false, message: 'Emit comment failed: save failed' }
 		}
 	} catch (error) {
-		console.error('ERROR', '视频评论发送失败，错误信息：', error, { videoId: emitVideoCommentRequest.videoId, uuid })
-		return { success: false, message: '视频评论发送失败，未知错误' }
+		console.error('ERROR', 'Emit comment failed: unknown error', error, { videoId: emitVideoCommentRequest.videoId, uuid })
+		return { success: false, message: 'Emit comment failed: unknown error' }
 	}
 }
 
 /**
- * 根据 KVID 获取视频评论列表，并检查当前用户是否对获取到的评论有点赞/点踩，如果有，相应的值会变为 true
- * @param getVideoCommentByKvidRequest 请求视频评论列表的查询参数
- * @returns 视频的视频评论列表
+ * Get comment list by KVID and current user's upvote/downvote status
+ * @param getVideoCommentByKvidRequest Query params
+ * @returns Comment list
  */
 export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequest: GetVideoCommentByKvidRequestDto, uuid: string, token: string): Promise<GetVideoCommentByKvidResponseDto> => {
-	// WARN // TODO 应当添加更多安全验证，防刷！
+	// WARN // TODO add more rate-limiting/validation
 	try {
 		if (!checkGetVideoCommentByKvidRequest(getVideoCommentByKvidRequest)) {
-			console.error('ERROR', '获取视频评论列表失败，数据校验失败', { getVideoCommentByKvidRequest })
-			return { success: false, message: '获取视频评论列表失败，数据校验失败', videoCommentCount: 0, videoCommentList: [] }
+			console.error('ERROR', 'Get comment list failed: validation failed', { getVideoCommentByKvidRequest })
+			return { success: false, message: 'Get comment list failed: validation failed', videoCommentCount: 0, videoCommentList: [] }
 		}
 
-		if (uuid !== undefined && uuid !== null && token) { // 校验用户，如果校验通过，则获取当前用户对某一视频的点赞/点踩的评论的评论 ID 列表
+		if (uuid !== undefined && uuid !== null && token) { // If user verified, include their upvote/downvote flags
 			if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-				console.error('ERROR', '获取视频评论列表失败，用户校验未通过', { getVideoCommentByKvidRequest })
-				return { success: false, message: '获取视频评论列表失败，用户校验未通过', videoCommentCount: 0, videoCommentList: [] }
+				console.error('ERROR', 'Get comment list failed: user verification failed', { getVideoCommentByKvidRequest })
+				return { success: false, message: 'Get comment list failed: user verification failed', videoCommentCount: 0, videoCommentList: [] }
 			}
 		}
 
@@ -205,34 +205,34 @@ export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequ
 			token
 		)
 
-		// 获取视频的评论总数的 pipeline
+		// Count pipeline
 		const countVideoCommentPipeline: PipelineStage[] = [
-			// 1. 查询评论信息
+			// 1. match comments
 			{
 				$match: {
-					videoId // 通过 videoId 筛选评论
+					videoId // by videoId
 				},
 			},
 			...blockListFilter.filter,
-			// 2. 统计总数量
+			// 2. count
 			{
-				$count: 'totalCount', // 统计总文档数
+				$count: 'totalCount', // total documents
 			}
 		]
 
-		// 获取视频评论的 pipeline
+		// Fetch pipeline
 		const getVideoCommentsPipeline: PipelineStage[] = [
-			// 1. 查询评论信息
+			// 1. match
 			{
 				$match: {
-					videoId // 通过 videoId 筛选评论
+					videoId // by videoId
 				},
 			},
 			...blockListFilter.filter,
-			// 2. 关联用户表获取评论发送者信息
+			// 2. join user info
 			{
 				$lookup: {
-					from: 'user-infos', // WARN: 别忘了变复数
+					from: 'user-infos', // user info collection
 					localField: 'UUID',
 					foreignField: 'UUID',
 					as: 'user_info_data',
@@ -241,27 +241,27 @@ export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequ
 			{
 				$unwind: {
 					path: '$user_info_data',
-					preserveNullAndEmptyArrays: true, // 保留空数组和null值
+					preserveNullAndEmptyArrays: true, // keep null/empty
 				},
 			},
-			// 3. 按楼层升序排序
+			// 3. sort by floor asc
 			{ $sort: { 'commentIndex': 1 } },
-			// 4. 分页查询
-			{ $skip: skip }, // 跳过指定数量的文档
-			...(pageSize ? [{ $limit: pageSize }] : []), // 限制返回的文档数量
-			// 5. 关联目标用户的点赞数据
+			// 4. pagination
+			{ $skip: skip }, // skip
+			...(pageSize ? [{ $limit: pageSize }] : []), // limit
+			// 5. join current user's upvotes
 			{
 				$lookup: {
-					from: 'video-comment-upvotes', // 用户视频评论点赞表名 // WARN: 别忘了变复数
-					let: { commentId: { $toString: '$_id' } }, // 当前评论的 _id
+					from: 'video-comment-upvotes', // comment upvotes
+					let: { commentId: { $toString: '$_id' } }, // current comment id
 					pipeline: [
 						{
 							$match: {
 								$expr: {
 									$and: [
-										{ $eq: ['$commentId', '$$commentId'] }, // 匹配评论 ID
-										{ $eq: ['$UUID', uuid] }, // 匹配用户 UUID
-										{ $eq: ['$invalidFlag', false] }, // 只统计有效点赞
+										{ $eq: ['$commentId', '$$commentId'] }, // comment id
+										{ $eq: ['$UUID', uuid] }, // user uuid
+										{ $eq: ['$invalidFlag', false] }, // only valid
 									],
 								},
 							},
@@ -270,10 +270,10 @@ export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequ
 					as: 'userUpvote',
 				},
 			},
-			// 6. 只关联该用户的点踩数据
+			// 6. join current user's downvotes
 			{
 				$lookup: {
-					from: 'video-comment-downvotes', // 用户视频评论点踩表名 // WARN: 别忘了变复数
+					from: 'video-comment-downvotes', // comment downvotes
 					let: { commentId: { $toString: '$_id' } },
 					pipeline: [
 						{
@@ -281,8 +281,8 @@ export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequ
 								$expr: {
 									$and: [
 										{ $eq: ['$commentId', '$$commentId'] },
-										{ $eq: ['$UUID', uuid] }, // 匹配用户 UUID
-										{ $eq: ['$invalidFlag', false] }, // 只统计有效点踩
+										{ $eq: ['$UUID', uuid] }, // user uuid
+										{ $eq: ['$invalidFlag', false] }, // only valid
 									],
 								},
 							},
@@ -291,39 +291,39 @@ export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequ
 					as: 'userDownvote',
 				},
 			},
-			// 7. 判断用户是否点赞或点踩
+			// 7. flags
 			{
 				$addFields: {
-					isUpvote: { $gt: [{ $size: '$userUpvote' }, 0] }, // 是否点赞
-					isDownvote: { $gt: [{ $size: '$userDownvote' }, 0] }, // 是否点踩
+					isUpvote: { $gt: [{ $size: '$userUpvote' }, 0] }, // has upvoted
+					isDownvote: { $gt: [{ $size: '$userDownvote' }, 0] }, // has downvoted
 				},
 			},
-			// 8. 清理不必要字段，返回所需数据
+			// 8. project
 			{
 				$project: {
-					_id: 1, // 评论的 ID
-					content: 1, // 评论内容
-					commentRoute: 1, // 评论的路由
+					_id: 1, // comment id
+					content: 1, // content
+					commentRoute: 1, // route
 					videoId: 1,
-					UUID: 1, // 评论发送者的 UUID
-					uid: 1, // 评论发送者的 UID
-					emitTime: 1, // 发送评论的时间
-					text: 1, // 评论正文
-					upvoteCount: 1, // 评论点赞数
-					downvoteCount: 1, // 评论点踩数
-					commentIndex: 1, // 评论楼层数
-					subCommentsCount: 1, // 该评论的下一级子评论数量
-					editDateTime: 1, // 最后编辑时间
-					isUpvote: 1, // 是否已点赞
-					isDownvote: 1, // 是否已点踩
+					UUID: 1, // commenter uuid
+					uid: 1, // commenter uid
+					emitTime: 1, // time
+					text: 1, // text
+					upvoteCount: 1, // upvotes
+					downvoteCount: 1, // downvotes
+					commentIndex: 1, // floor
+					subCommentsCount: 1, // sub comments count
+					editDateTime: 1, // last edit
+					isUpvote: 1, // upvoted
+					isDownvote: 1, // downvoted
 					userInfo: {
-						username: '$user_info_data.username', // 用户名
-						userNickname: '$user_info_data.userNickname', // 用户昵称
-						avatar: '$user_info_data.avatar', // 用户头像的链接
-						signature: '$user_info_data.signature', // 用户的个性签名
-						gender: '$user_info_data.gender' // 用户的性别
+						username: '$user_info_data.username', // username
+						userNickname: '$user_info_data.userNickname', // nickname
+						avatar: '$user_info_data.avatar', // avatar
+						signature: '$user_info_data.signature', // signature
+						gender: '$user_info_data.gender' // gender
 					},
-					...blockListFilter.additionalFields, // 黑名单过滤器的额外字段
+					...blockListFilter.additionalFields, // extra fields from blocklist filter
 				},
 			},
 		]
@@ -333,27 +333,26 @@ export const getVideoCommentListByKvidService = async (getVideoCommentByKvidRequ
 		const videoCommentsResult = await selectDataByAggregateFromMongoDB(schemaInstance, collectionName, getVideoCommentsPipeline)
 
 		if (!videoCommentsResult.success || !videoCommentsCountResult.success) {
-			console.error('ERROR', '获取视频评论列表失败，查询数据失败', { getVideoCommentByKvidRequest })
-			return { success: false, message: '获取视频评论列表失败，查询数据失败', videoCommentCount: 0, videoCommentList: [] }
+			console.error('ERROR', 'Get comment list failed: query failed', { getVideoCommentByKvidRequest })
+			return { success: false, message: 'Get comment list failed: query failed', videoCommentCount: 0, videoCommentList: [] }
 		}
 
 		return {
 			success: true,
-			message: videoCommentsCountResult.result?.[0]?.totalCount > 0 ? '获取视频评论列表成功' : '获取视频评论列表成功，长度为零',
+			message: videoCommentsCountResult.result?.[0]?.totalCount > 0 ? 'Get comment list success' : 'Get comment list success, length is zero',
 			videoCommentCount: videoCommentsCountResult.result?.[0]?.totalCount,
 			videoCommentList: videoCommentsResult.result,
 		}
 	} catch (error) {
-		console.error('ERROR', '获取视频评论列表失败，错误信息：', error, { getVideoCommentByKvidRequest })
-		return { success: false, message: '获取视频评论列表失败，未知原因', videoCommentCount: 0, videoCommentList: [] }
+		console.error('ERROR', 'Get comment list failed: unknown error', error, { getVideoCommentByKvidRequest })
+		return { success: false, message: 'Get comment list failed: unknown error', videoCommentCount: 0, videoCommentList: [] }
 	}
 }
 
-
 /**
- * 获取某个用户对某个视频的评论的点赞情况
- * @param getVideoCommentUpvoteProps 获取某个用户对某个视频的评论的点赞情况的参数
- * @returns 某个用户对某个视频的评论的点赞情况
+ * Get a user's upvote list on a video's comments
+ * @param getVideoCommentUpvoteProps Parameters
+ * @returns Upvote list
  */
 const getVideoCommentUpvoteByUid = async (getVideoCommentUpvoteProps: GetVideoCommentUpvotePropsDto): Promise<GetVideoCommentUpvoteResultDto> => {
 	try {
@@ -378,32 +377,32 @@ const getVideoCommentUpvoteByUid = async (getVideoCommentUpvoteProps: GetVideoCo
 				const videoCommentUpvoteList = result.result
 				if (result.success) {
 					if (videoCommentUpvoteList && videoCommentUpvoteList.length > 0) {
-						return { success: true, message: '获取用户点赞情况成功', videoCommentUpvoteResult: videoCommentUpvoteList }
+						return { success: true, message: 'Get user upvotes success', videoCommentUpvoteResult: videoCommentUpvoteList }
 					} else {
-						return { success: true, message: '用户点赞情况为空', videoCommentUpvoteResult: [] }
+						return { success: true, message: 'User upvotes is empty', videoCommentUpvoteResult: [] }
 					}
 				} else {
-					console.warn('WARN', 'WARNING', '获取用户点赞情况失败，查询失败或结果为空：', { getVideoCommentUpvoteProps })
-					return { success: false, message: '获取用户点赞情况失败，查询失败', videoCommentUpvoteResult: [] }
+					console.warn('WARN', 'WARNING', 'Get user upvotes failed: query failed or empty', { getVideoCommentUpvoteProps })
+					return { success: false, message: 'Get user upvotes failed: query failed', videoCommentUpvoteResult: [] }
 				}
 			} catch (error) {
-				console.warn('WARN', 'WARNING', '获取用户点赞情况失败，查询失败：', error, { getVideoCommentUpvoteProps })
-				return { success: false, message: '获取用户点赞情况失败，查询失败', videoCommentUpvoteResult: [] }
+				console.warn('WARN', 'WARNING', 'Get user upvotes failed: query error', error, { getVideoCommentUpvoteProps })
+				return { success: false, message: 'Get user upvotes failed: query error', videoCommentUpvoteResult: [] }
 			}
 		} else {
-			console.warn('WARN', 'WARNING', '获取用户点赞情况失败，查询参数未通过校验', { getVideoCommentUpvoteProps })
-			return { success: false, message: '获取用户点赞情况失败，必要参数为空', videoCommentUpvoteResult: [] }
+			console.warn('WARN', 'WARNING', 'Get user upvotes failed: invalid parameters', { getVideoCommentUpvoteProps })
+			return { success: false, message: 'Get user upvotes failed: required parameter is empty', videoCommentUpvoteResult: [] }
 		}
 	} catch (error) {
-		console.warn('WARN', 'WARNING', '获取用户点赞情况失败，错误信息：', error, { getVideoCommentUpvoteProps })
-		return { success: false, message: '获取用户点赞情况失败，未知错误', videoCommentUpvoteResult: [] }
+		console.warn('WARN', 'WARNING', 'Get user upvotes failed: unknown error', error, { getVideoCommentUpvoteProps })
+		return { success: false, message: 'Get user upvotes failed: unknown error', videoCommentUpvoteResult: [] }
 	}
 }
 
 /**
- * 获取某个用户对某个视频的评论的点踩情况
- * @param getVideoCommentDownvoteProps 获取某个用户对某个视频的评论的点踩情况的参数
- * @returns 某个用户对某个视频的评论的点踩情况
+ * Get a user's downvote list on a video's comments
+ * @param getVideoCommentDownvoteProps Parameters
+ * @returns Downvote list
  */
 const getVideoCommentDownvoteByUid = async (getVideoCommentDownvoteProps: GetVideoCommentDownvotePropsDto): Promise<GetVideoCommentDownvoteResultDto> => {
 	try {
@@ -428,44 +427,44 @@ const getVideoCommentDownvoteByUid = async (getVideoCommentDownvoteProps: GetVid
 				const videoCommentDownvoteList = result.result
 				if (result.success) {
 					if (videoCommentDownvoteList && videoCommentDownvoteList.length > 0) {
-						return { success: true, message: '获取用户点踩情况成功', videoCommentDownvoteResult: videoCommentDownvoteList }
+						return { success: true, message: 'Get user downvotes success', videoCommentDownvoteResult: videoCommentDownvoteList }
 					} else {
-						return { success: true, message: '用户点踩情况为空', videoCommentDownvoteResult: [] }
+						return { success: true, message: 'User downvotes is empty', videoCommentDownvoteResult: [] }
 					}
 				} else {
-					console.warn('WARN', 'WARNING', '获取用户点踩情况失败，查询失败或结果为空：', { getVideoCommentDownvoteProps })
-					return { success: false, message: '获取用户点踩情况失败，查询失败', videoCommentDownvoteResult: [] }
+					console.warn('WARN', 'WARNING', 'Get user downvotes failed: query failed or empty', { getVideoCommentDownvoteProps })
+					return { success: false, message: 'Get user downvotes failed: query failed', videoCommentDownvoteResult: [] }
 				}
 			} catch (error) {
-				console.warn('WARN', 'WARNING', '获取用户点踩情况失败，查询失败：', error, { getVideoCommentDownvoteProps })
-				return { success: false, message: '获取用户点踩情况失败，查询失败', videoCommentDownvoteResult: [] }
+				console.warn('WARN', 'WARNING', 'Get user downvotes failed: query error', error, { getVideoCommentDownvoteProps })
+				return { success: false, message: 'Get user downvotes failed: query error', videoCommentDownvoteResult: [] }
 			}
 		} else {
-			console.warn('WARN', 'WARNING', '获取用户点踩情况失败，查询参数未通过校验', { getVideoCommentDownvoteProps })
-			return { success: false, message: '获取用户点踩情况失败，必要参数为空', videoCommentDownvoteResult: [] }
+			console.warn('WARN', 'WARNING', 'Get user downvotes failed: invalid parameters', { getVideoCommentDownvoteProps })
+			return { success: false, message: 'Get user downvotes failed: required parameter is empty', videoCommentDownvoteResult: [] }
 		}
 	} catch (error) {
-		console.warn('WARN', 'WARNING', '获取用户点踩情况失败，错误信息：', error, { getVideoCommentDownvoteProps })
-		return { success: false, message: '获取用户点踩情况失败，未知错误', videoCommentDownvoteResult: [] }
+		console.warn('WARN', 'WARNING', 'Get user downvotes failed: unknown error', error, { getVideoCommentDownvoteProps })
+		return { success: false, message: 'Get user downvotes failed: unknown error', videoCommentDownvoteResult: [] }
 	}
 }
 
 /**
- * 用户给视频评论点赞
- * @param emitVideoCommentUpvoteRequest 用户给视频评论点赞的请求载荷
- * @param uid 用户 UID
- * @param token 用户 UID 对应的 token
- * @returns 用户给视频评论点赞的结果
+ * Upvote a video comment
+ * @param emitVideoCommentUpvoteRequest Request payload
+ * @param uid User UID
+ * @param token User token
+ * @returns Upvote result
  */
 export const emitVideoCommentUpvoteService = async (emitVideoCommentUpvoteRequest: EmitVideoCommentUpvoteRequestDto, uid: number, token: string): Promise<EmitVideoCommentUpvoteResponseDto> => {
-	// WARN // TODO 应当添加更多安全验证，防刷！
+	// WARN // TODO add more safety (anti-spam)
 	try {
 		if (checkEmitVideoCommentUpvoteRequestData(emitVideoCommentUpvoteRequest)) {
-			if ((await checkUserTokenService(uid, token)).success) { // 校验用户，校验通过才能点赞
-				const UUID = await getUserUuid(uid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+			if ((await checkUserTokenService(uid, token)).success) { // verify before upvote
+				const UUID = await getUserUuid(uid) // DELETE ME temporary; cookie should store UUID
 				if (!UUID) {
-					console.error('ERROR', '评论点赞失败，UUID 不存在', { uid })
-					return { success: false, message: '评论点赞失败，UUID 不存在' }
+					console.error('ERROR', 'Upvote failed: UUID not found', { uid })
+					return { success: false, message: 'Upvote failed: UUID not found' }
 				}
 
 				const { collectionName: videoCommentUpvoteCollectionName, schemaInstance: correctVideoCommentUpvoteSchema } = VideoCommentUpvoteSchema
@@ -483,7 +482,7 @@ export const emitVideoCommentUpvoteService = async (emitVideoCommentUpvoteReques
 					editDateTime: nowDate,
 				}
 
-				if (!(await checkUserHasUpvoted(commentId, uid))) { // 用户没有对这条视频评论点赞，才能点赞
+				if (!(await checkUserHasUpvoted(commentId, uid))) { // only if not already upvoted
 					try {
 						const insertData2MongoDBResult = await insertData2MongoDB(videoCommentUpvote, correctVideoCommentUpvoteSchema, videoCommentUpvoteCollectionName)
 						if (insertData2MongoDBResult && insertData2MongoDBResult.success) {
@@ -492,7 +491,7 @@ export const emitVideoCommentUpvoteService = async (emitVideoCommentUpvoteReques
 							try {
 								const updateResult = await findOneAndPlusByMongodbId(commentId, upvoteBy, correctVideoCommentSchema, videoCommentCollectionName)
 								if (updateResult && updateResult.success) {
-									if (await checkUserHasDownvoted(commentId, uid)) { // 用户在点赞一个视频评论时，如果用户之前对这个视频评论有点踩，需要将视频评论的点踩取消
+									if (await checkUserHasDownvoted(commentId, uid)) { // if downvoted before, cancel it
 										const cancelVideoCommentDownvoteRequest: CancelVideoCommentDownvoteRequestDto = {
 											id: commentId,
 											videoId,
@@ -500,63 +499,63 @@ export const emitVideoCommentUpvoteService = async (emitVideoCommentUpvoteReques
 										try {
 											const cancelVideoCommentDownvoteResult = await cancelVideoCommentDownvoteService(cancelVideoCommentDownvoteRequest, uid, token)
 											if (cancelVideoCommentDownvoteResult.success) {
-												return { success: true, message: '视频评论点赞成功' }
+												return { success: true, message: 'Upvote success' }
 											} else {
-												console.error('ERROR', '视频评论点赞成功，但未能取消点踩', { emitVideoCommentUpvoteRequest, uid })
-												return { success: false, message: '视频评论点赞成功，但未能取消点踩' }
+												console.error('ERROR', 'Upvote success, but failed to cancel downvote', { emitVideoCommentUpvoteRequest, uid })
+												return { success: false, message: 'Upvote success, but failed to cancel downvote' }
 											}
 										} catch (error) {
-											console.error('ERROR', '视频评论点赞成功，但取消点踩的请求失败', error, { emitVideoCommentUpvoteRequest, uid })
-											return { success: false, message: '视频评论点赞成功，但取消点踩失败' }
+											console.error('ERROR', 'Upvote success, but cancel downvote request failed', error, { emitVideoCommentUpvoteRequest, uid })
+											return { success: false, message: 'Upvote success, but cancel downvote failed' }
 										}
 									} else {
-										return { success: true, message: '视频评论点赞成功' }
+										return { success: true, message: 'Upvote success' }
 									}
 								} else {
-									console.error('ERROR', '视频评论点赞数据存储成功，但点赞合计未增加', { emitVideoCommentUpvoteRequest, uid })
-									return { success: false, message: '视频评论点赞数据存储成功，但点赞合计未增加' }
+									console.error('ERROR', 'Upvote stored, but upvote count not increased', { emitVideoCommentUpvoteRequest, uid })
+									return { success: false, message: 'Upvote stored, but upvote count not increased' }
 								}
 							} catch (error) {
-								console.error('ERROR', '视频评论点赞数据存储成功，但点赞合计增加失败', error, { emitVideoCommentUpvoteRequest, uid })
-								return { success: false, message: '视频评论点赞数据存储成功，但点赞合计增加失败' }
+								console.error('ERROR', 'Upvote stored, but increasing upvote count failed', error, { emitVideoCommentUpvoteRequest, uid })
+								return { success: false, message: 'Upvote stored, but increasing upvote count failed' }
 							}
 						} else {
-							console.error('ERROR', '视频评论点赞失败', { emitVideoCommentUpvoteRequest, uid })
-							return { success: false, message: '视频评论点赞失败，存储数据失败' }
+							console.error('ERROR', 'Upvote failed', { emitVideoCommentUpvoteRequest, uid })
+							return { success: false, message: 'Upvote failed: save failed' }
 						}
 					} catch (error) {
-						console.error('ERROR', '视频评论点赞失败，无法存储到 MongoDB', error, { emitVideoCommentUpvoteRequest, uid })
-						return { success: false, message: '视频评论点赞失败，存储数据失败' }
+						console.error('ERROR', 'Upvote failed: cannot save to MongoDB', error, { emitVideoCommentUpvoteRequest, uid })
+						return { success: false, message: 'Upvote failed: save failed' }
 					}
 				} else {
-					console.error('ERROR', '用户点赞时出错，用户已点赞', { emitVideoCommentUpvoteRequest, uid })
-					return { success: false, message: '用户点赞时出错，用户已点赞' }
+					console.error('ERROR', 'Upvote error: already upvoted', { emitVideoCommentUpvoteRequest, uid })
+					return { success: false, message: 'Upvote error: already upvoted' }
 				}
 			} else {
-				console.error('ERROR', '用户点赞时出错，用户校验未通过', { emitVideoCommentUpvoteRequest, uid })
-				return { success: false, message: '用户点赞时出错，用户校验未通过' }
+				console.error('ERROR', 'Upvote error: user verification failed', { emitVideoCommentUpvoteRequest, uid })
+				return { success: false, message: 'Upvote error: user verification failed' }
 			}
 		} else {
-			console.error('ERROR', '用户点赞时出错，点赞数据校验未通过：', { emitVideoCommentUpvoteRequest, uid })
-			return { success: false, message: '用户点赞时出错，数据错误' }
+			console.error('ERROR', 'Upvote error: payload validation failed', { emitVideoCommentUpvoteRequest, uid })
+			return { success: false, message: 'Upvote error: invalid data' }
 		}
 	} catch (error) {
-		console.error('ERROR', '点赞失败，未知错误：', error, { emitVideoCommentUpvoteRequest, uid })
-		return { success: false, message: '点赞失败，未知错误' }
+		console.error('ERROR', 'Upvote failed: unknown error', error, { emitVideoCommentUpvoteRequest, uid })
+		return { success: false, message: 'Upvote failed: unknown error' }
 	}
 }
 
 /**
- * 用户取消点赞一个视频评论
- * @param cancelVideoCommentUpvoteRequest 用户取消点赞一个视频评论的请求参数
- * @param uid 用户 UID
- * @param token 用户 UID 对应的 token
- * @returns 用户取消点赞一个视频评论的结果
+ * Cancel upvote
+ * @param cancelVideoCommentUpvoteRequest Request payload
+ * @param uid User UID
+ * @param token User token
+ * @returns Result
  */
 export const cancelVideoCommentUpvoteService = async (cancelVideoCommentUpvoteRequest: CancelVideoCommentUpvoteRequestDto, uid: number, token: string): Promise<CancelVideoCommentUpvoteResponseDto> => {
 	try {
 		if (checkCancelVideoCommentUpvoteRequest(cancelVideoCommentUpvoteRequest)) {
-			if ((await checkUserTokenService(uid, token)).success) { // 校验用户，校验通过才能取消点赞
+			if ((await checkUserTokenService(uid, token)).success) { // verify before cancel
 				const { collectionName: videoCommentUpvoteCollectionName, schemaInstance: correctVideoCommentUpvoteSchema } = VideoCommentUpvoteSchema
 				type VideoCommentUpvote = InferSchemaType<typeof correctVideoCommentUpvoteSchema>
 				const commentId = cancelVideoCommentUpvoteRequest.id
@@ -577,43 +576,43 @@ export const cancelVideoCommentUpvoteService = async (cancelVideoCommentUpvoteRe
 								const upvoteBy = 'upvoteCount'
 								const updateResult = await findOneAndPlusByMongodbId(commentId, upvoteBy, correctVideoCommentSchema, videoCommentCollectionName, -1)
 								if (updateResult.success) {
-									return { success: true, message: '用户取消点赞成功' }
+									return { success: true, message: 'Cancel upvote success' }
 								} else {
-									console.warn('WARN', 'WARNING', '用户取消点赞成功，但点赞总数未更新')
-									return { success: true, message: '用户取消点赞成功，但点赞总数未更新' }
+									console.warn('WARN', 'WARNING', 'Cancel upvote success, but count not updated')
+									return { success: true, message: 'Cancel upvote success, but count not updated' }
 								}
 							} catch (error) {
-								console.warn('WARN', 'WARNING', '用户取消点赞成功，但点赞总数更新失败')
-								return { success: true, message: '用户取消点赞成功，但点赞总数更新失败' }
+								console.warn('WARN', 'WARNING', 'Cancel upvote success, but updating count failed')
+								return { success: true, message: 'Cancel upvote success, but updating count failed' }
 							}
 						} else {
-							console.error('ERROR', '用户取消点赞时出错，更新数量为 0', { cancelVideoCommentUpvoteRequest, uid })
-							return { success: false, message: '用户取消点赞时出错，无法更新' }
+							console.error('ERROR', 'Cancel upvote error: matched/modified 0', { cancelVideoCommentUpvoteRequest, uid })
+							return { success: false, message: 'Cancel upvote error: cannot update' }
 						}
 					}
 				} catch (error) {
-					console.error('ERROR', '用户取消点赞时出错，更新数据时出错', error, { cancelVideoCommentUpvoteRequest, uid })
-					return { success: false, message: '用户取消点赞时出错，更新数据时出错' }
+					console.error('ERROR', 'Cancel upvote error: update failed', error, { cancelVideoCommentUpvoteRequest, uid })
+					return { success: false, message: 'Cancel upvote error: update failed' }
 				}
 			} else {
-				console.error('ERROR', '用户取消点赞时出错，用户校验未通过', { cancelVideoCommentUpvoteRequest, uid })
-				return { success: false, message: '用户取消点赞时出错，用户校验未通过' }
+				console.error('ERROR', 'Cancel upvote error: user verification failed', { cancelVideoCommentUpvoteRequest, uid })
+				return { success: false, message: 'Cancel upvote error: user verification failed' }
 			}
 		} else {
-			console.error('ERROR', '用户取消点赞时出错，参数不合法或必要的参数为空', { cancelVideoCommentUpvoteRequest, uid })
-			return { success: false, message: '用户取消点赞时出错，参数异常' }
+			console.error('ERROR', 'Cancel upvote error: invalid parameters', { cancelVideoCommentUpvoteRequest, uid })
+			return { success: false, message: 'Cancel upvote error: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '用户取消点赞时出错，未知错误', error, { cancelVideoCommentUpvoteRequest, uid })
-		return { success: false, message: '用户取消点赞时出错，未知错误' }
+		console.error('ERROR', 'Cancel upvote error: unknown error', error, { cancelVideoCommentUpvoteRequest, uid })
+		return { success: false, message: 'Cancel upvote error: unknown error' }
 	}
 }
 
 /**
- * 检查用户是否已经对一个视频评论点赞
- * @param commentId 评论的 ID
- * @param uid 用户 UID
- * @returns 校验结果，用户已点赞返回 false, 未点赞返回 true
+ * Check if user has upvoted a comment
+ * @param commentId Comment ID
+ * @param uid User UID
+ * @returns true if upvoted, false otherwise
  */
 const checkUserHasUpvoted = async (commentId: string, uid: number): Promise<boolean> => {
 	try {
@@ -636,45 +635,43 @@ const checkUserHasUpvoted = async (commentId: string, uid: number): Promise<bool
 				const result = await selectDataFromMongoDB(where, select, schemaInstance, collectionName)
 				if (result.success) {
 					if (result.result && result.result.length > 0) {
-						return true // 查询到结果了，证明用户已点赞过了，所以返回 true
+						return true // user has upvoted
 					} else {
-						return false // 查询成功但未查询到结果，证明用户未点赞，所以返回 false
+						return false // user has not upvoted
 					}
 				} else {
-					return false // 悲观：查询失败，不算作用户点赞
+					return false // pessimistic: query failed
 				}
 			} catch (error) {
-				console.error('在验证用户是否已经对某评论点赞时出错：获取用户点赞数据失败', { commentId, uid })
+				console.error('Error checking user upvote: query failed', { commentId, uid })
 				return false
 			}
 		} else {
-			console.error('在验证用户是否已经对某评论点赞时出错：数据校验未通过', { commentId, uid })
+			console.error('Error checking user upvote: invalid params', { commentId, uid })
 			return false
 		}
 	} catch (error) {
-		console.error('在验证用户是否已经对某评论点赞时出错：', error, { commentId, uid })
+		console.error('Error checking user upvote:', error, { commentId, uid })
 		return false
 	}
 }
 
-
-
 /**
- * 用户给视频评论点踩
- * @param emitVideoCommentDownvoteRequest 用户给视频评论点踩的请求载荷
- * @param uid 用户 UID
- * @param token 用户 UID 对应的 token
- * @returns 用户给视频评论点踩的结果
+ * Downvote a video comment
+ * @param emitVideoCommentDownvoteRequest Request payload
+ * @param uid User UID
+ * @param token User token
+ * @returns Downvote result
  */
 export const emitVideoCommentDownvoteService = async (emitVideoCommentDownvoteRequest: EmitVideoCommentDownvoteRequestDto, uid: number, token: string): Promise<EmitVideoCommentDownvoteResponseDto> => {
-	// WARN // TODO 应当添加更多安全验证，防刷！
+	// WARN // TODO add more safety (anti-spam)
 	try {
 		if (checkEmitVideoCommentDownvoteRequestData(emitVideoCommentDownvoteRequest)) {
-			if ((await checkUserTokenService(uid, token)).success) { // 校验用户，校验通过才能点踩
-				const UUID = await getUserUuid(uid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+			if ((await checkUserTokenService(uid, token)).success) { // verify before downvote
+				const UUID = await getUserUuid(uid) // DELETE ME temporary; cookie should store UUID
 				if (!UUID) {
-					console.error('ERROR', '评论点踩失败，UUID 不存在', { uid })
-					return { success: false, message: '评论点踩失败，UUID 不存在' }
+					console.error('ERROR', 'Downvote failed: UUID not found', { uid })
+					return { success: false, message: 'Downvote failed: UUID not found' }
 				}
 
 				const { collectionName: videoCommentDownvoteCollectionName, schemaInstance: correctVideoCommentDownvoteSchema } = VideoCommentDownvoteSchema
@@ -693,7 +690,7 @@ export const emitVideoCommentDownvoteService = async (emitVideoCommentDownvoteRe
 					editDateTime: nowDate,
 				}
 
-				if (!(await checkUserHasDownvoted(commentId, uid))) { // 用户没有对这条视频评论点踩，才能点踩
+				if (!(await checkUserHasDownvoted(commentId, uid))) { // not already downvoted
 					try {
 						const insertData2MongoDBResult = await insertData2MongoDB(videoCommentDownvote, correctVideoCommentDownvoteSchema, videoCommentDownvoteCollectionName)
 						if (insertData2MongoDBResult && insertData2MongoDBResult.success) {
@@ -702,7 +699,7 @@ export const emitVideoCommentDownvoteService = async (emitVideoCommentDownvoteRe
 							try {
 								const updateResult = await findOneAndPlusByMongodbId(commentId, downvoteBy, correctVideoCommentSchema, videoCommentCollectionName)
 								if (updateResult && updateResult.success) {
-									if (await checkUserHasUpvoted(commentId, uid)) { // 用户在点踩一个视频评论时，如果用户之前对这个视频评论有点赞，需要将视频评论的点赞取消
+									if (await checkUserHasUpvoted(commentId, uid)) { // cancel upvote if present
 										const cancelVideoCommentUpvoteRequest: CancelVideoCommentUpvoteRequestDto = {
 											id: commentId,
 											videoId,
@@ -710,63 +707,63 @@ export const emitVideoCommentDownvoteService = async (emitVideoCommentDownvoteRe
 										try {
 											const cancelVideoCommentUpvoteResult = await cancelVideoCommentUpvoteService(cancelVideoCommentUpvoteRequest, uid, token)
 											if (cancelVideoCommentUpvoteResult.success) {
-												return { success: true, message: '视频评论点踩成功' }
+												return { success: true, message: 'Downvote success' }
 											} else {
-												console.error('ERROR', '视频评论点踩成功，但未能取消点赞', { emitVideoCommentDownvoteRequest, uid })
-												return { success: false, message: '视频评论点踩成功，但未能取消点赞' }
+												console.error('ERROR', 'Downvote success, but failed to cancel upvote', { emitVideoCommentDownvoteRequest, uid })
+												return { success: false, message: 'Downvote success, but failed to cancel upvote' }
 											}
 										} catch (error) {
-											console.error('ERROR', '视频评论点踩成功，但取消点赞的请求失败', error, { emitVideoCommentDownvoteRequest, uid })
-											return { success: false, message: '视频评论点踩成功，但取消点赞失败' }
+											console.error('ERROR', 'Downvote success, but cancel upvote request failed', error, { emitVideoCommentDownvoteRequest, uid })
+											return { success: false, message: 'Downvote success, but cancel upvote failed' }
 										}
 									} else {
-										return { success: true, message: '视频评论点踩成功' }
+										return { success: true, message: 'Downvote success' }
 									}
 								} else {
-									console.error('ERROR', '视频评论点踩数据存储成功，但点踩合计未增加', { emitVideoCommentDownvoteRequest, uid })
-									return { success: false, message: '视频评论点踩数据存储成功，但点踩合计未增加' }
+									console.error('ERROR', 'Downvote stored, but downvote count not increased', { emitVideoCommentDownvoteRequest, uid })
+									return { success: false, message: 'Downvote stored, but downvote count not increased' }
 								}
 							} catch (error) {
-								console.error('ERROR', '视频评论点踩数据存储成功，但点踩合计增加失败', error, { emitVideoCommentDownvoteRequest, uid })
-								return { success: false, message: '视频评论点踩数据存储成功，但点踩合计增加失败' }
+								console.error('ERROR', 'Downvote stored, but increasing downvote count failed', error, { emitVideoCommentDownvoteRequest, uid })
+								return { success: false, message: 'Downvote stored, but increasing downvote count failed' }
 							}
 						} else {
-							console.error('ERROR', '视频评论点踩失败', { emitVideoCommentDownvoteRequest, uid })
-							return { success: false, message: '视频评论点踩失败，存储数据失败' }
+							console.error('ERROR', 'Downvote failed', { emitVideoCommentDownvoteRequest, uid })
+							return { success: false, message: 'Downvote failed: save failed' }
 						}
 					} catch (error) {
-						console.error('ERROR', '视频评论点踩失败，无法存储到 MongoDB', error, { emitVideoCommentDownvoteRequest, uid })
-						return { success: false, message: '视频评论点踩失败，存储数据失败' }
+						console.error('ERROR', 'Downvote failed: cannot save to MongoDB', error, { emitVideoCommentDownvoteRequest, uid })
+						return { success: false, message: 'Downvote failed: save failed' }
 					}
 				} else {
-					console.error('ERROR', '用户点踩时出错，用户已点踩', { emitVideoCommentDownvoteRequest, uid })
-					return { success: false, message: '用户点踩时出错，用户已点踩' }
+					console.error('ERROR', 'Downvote error: already downvoted', { emitVideoCommentDownvoteRequest, uid })
+					return { success: false, message: 'Downvote error: already downvoted' }
 				}
 			} else {
-				console.error('ERROR', '用户点踩时出错，用户校验未通过', { emitVideoCommentDownvoteRequest, uid })
-				return { success: false, message: '用户点踩时出错，用户校验未通过' }
+				console.error('ERROR', 'Downvote error: user verification failed', { emitVideoCommentDownvoteRequest, uid })
+				return { success: false, message: 'Downvote error: user verification failed' }
 			}
 		} else {
-			console.error('ERROR', '用户点踩时出错，点踩数据校验未通过：', { emitVideoCommentDownvoteRequest, uid })
-			return { success: false, message: '用户点踩时出错，数据错误' }
+			console.error('ERROR', 'Downvote error: payload validation failed', { emitVideoCommentDownvoteRequest, uid })
+			return { success: false, message: 'Downvote error: invalid data' }
 		}
 	} catch (error) {
-		console.error('ERROR', '点踩失败，未知错误：', error, { emitVideoCommentDownvoteRequest, uid })
-		return { success: false, message: '点踩失败，未知错误' }
+		console.error('ERROR', 'Downvote failed: unknown error', error, { emitVideoCommentDownvoteRequest, uid })
+		return { success: false, message: 'Downvote failed: unknown error' }
 	}
 }
 
 /**
- * 用户取消点踩一个视频评论
- * @param cancelVideoCommentDownvoteRequest 用户取消点踩一个视频评论的请求参数
- * @param uid 用户 UID
- * @param token 用户 UID 对应的 token
- * @returns 用户取消点踩一个视频评论的结果
+ * Cancel downvote
+ * @param cancelVideoCommentDownvoteRequest Request payload
+ * @param uid User UID
+ * @param token User token
+ * @returns Result
  */
 export const cancelVideoCommentDownvoteService = async (cancelVideoCommentDownvoteRequest: CancelVideoCommentDownvoteRequestDto, uid: number, token: string): Promise<CancelVideoCommentDownvoteResponseDto> => {
 	try {
 		if (checkCancelVideoCommentDownvoteRequest(cancelVideoCommentDownvoteRequest)) {
-			if ((await checkUserTokenService(uid, token)).success) { // 校验用户，校验通过才能取消点踩
+			if ((await checkUserTokenService(uid, token)).success) { // verify
 				const { collectionName: videoCommentDownvoteCollectionName, schemaInstance: correctVideoCommentDownvoteSchema } = VideoCommentDownvoteSchema
 				type VideoCommentDownvote = InferSchemaType<typeof correctVideoCommentDownvoteSchema>
 				const commentId = cancelVideoCommentDownvoteRequest.id
@@ -787,43 +784,43 @@ export const cancelVideoCommentDownvoteService = async (cancelVideoCommentDownvo
 								const downvoteBy = 'downvoteCount'
 								const updateResult = await findOneAndPlusByMongodbId(commentId, downvoteBy, correctVideoCommentSchema, videoCommentCollectionName, -1)
 								if (updateResult.success) {
-									return { success: true, message: '用户取消点踩成功' }
+									return { success: true, message: 'Cancel downvote success' }
 								} else {
-									console.warn('WARN', 'WARNING', '用户取消点踩成功，但点踩总数未更新')
-									return { success: true, message: '用户取消点踩成功，但点踩总数未更新' }
+									console.warn('WARN', 'WARNING', 'Cancel downvote success, but count not updated')
+									return { success: true, message: 'Cancel downvote success, but count not updated' }
 								}
 							} catch (error) {
-								console.warn('WARN', 'WARNING', '用户取消点踩成功，但点踩总数更新失败')
-								return { success: true, message: '用户取消点踩成功，但点踩总数更新失败' }
+								console.warn('WARN', 'WARNING', 'Cancel downvote success, but updating count failed')
+								return { success: true, message: 'Cancel downvote success, but updating count failed' }
 							}
 						} else {
-							console.error('ERROR', '用户取消点踩时出错，更新数量为 0', { cancelVideoCommentDownvoteRequest, uid })
-							return { success: false, message: '用户取消点踩时出错，无法更新' }
+							console.error('ERROR', 'Cancel downvote error: matched/modified 0', { cancelVideoCommentDownvoteRequest, uid })
+							return { success: false, message: 'Cancel downvote error: cannot update' }
 						}
 					}
 				} catch (error) {
-					console.error('ERROR', '用户取消点踩时出错，更新数据时出错', error, { cancelVideoCommentDownvoteRequest, uid })
-					return { success: false, message: '用户取消点踩时出错，更新数据时出错' }
+					console.error('ERROR', 'Cancel downvote error: update failed', error, { cancelVideoCommentDownvoteRequest, uid })
+					return { success: false, message: 'Cancel downvote error: update failed' }
 				}
 			} else {
-				console.error('ERROR', '用户取消点踩时出错，用户校验未通过', { cancelVideoCommentDownvoteRequest, uid })
-				return { success: false, message: '用户取消点踩时出错，用户校验未通过' }
+				console.error('ERROR', 'Cancel downvote error: user verification failed', { cancelVideoCommentDownvoteRequest, uid })
+				return { success: false, message: 'Cancel downvote error: user verification failed' }
 			}
 		} else {
-			console.error('ERROR', '用户取消点踩时出错，参数不合法或必要的参数为空', { cancelVideoCommentDownvoteRequest, uid })
-			return { success: false, message: '用户取消点踩时出错，参数异常' }
+			console.error('ERROR', 'Cancel downvote error: invalid parameters', { cancelVideoCommentDownvoteRequest, uid })
+			return { success: false, message: 'Cancel downvote error: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '用户取消点踩时出错，未知错误', error, { cancelVideoCommentDownvoteRequest, uid })
-		return { success: false, message: '用户取消点踩时出错，未知错误' }
+		console.error('ERROR', 'Cancel downvote error: unknown error', error, { cancelVideoCommentDownvoteRequest, uid })
+		return { success: false, message: 'Cancel downvote error: unknown error' }
 	}
 }
 
 /**
- * 检查用户是否已经对一个视频评论点踩
- * @param commentId 评论的 ID
- * @param uid 用户 UID
- * @returns 校验结果，用户已点踩返回 false, 未点踩返回 true
+ * Check if user has downvoted a comment
+ * @param commentId Comment ID
+ * @param uid User UID
+ * @returns true if downvoted, false otherwise
  */
 const checkUserHasDownvoted = async (commentId: string, uid: number): Promise<boolean> => {
 	try {
@@ -846,50 +843,50 @@ const checkUserHasDownvoted = async (commentId: string, uid: number): Promise<bo
 				const result = await selectDataFromMongoDB(where, select, schemaInstance, collectionName)
 				if (result.success) {
 					if (result.result && result.result.length > 0) {
-						return true // 查询到结果了，证明用户已点踩过了，所以返回 true
+						return true // user has downvoted
 					} else {
-						return false // 查询成功但未查询到结果，证明用户未点踩，所以返回 false
+						return false // user has not downvoted
 					}
 				} else {
-					return false // 悲观：查询失败，不算作用户点踩
+					return false // pessimistic: query failed
 				}
 			} catch (error) {
-				console.error('在验证用户是否已经对某评论点踩时出错：获取用户点踩数据失败', { commentId, uid })
+				console.error('Error checking user downvote: query failed', { commentId, uid })
 				return false
 			}
 		} else {
-			console.error('在验证用户是否已经对某评论点踩时出错：数据校验未通过', { commentId, uid })
+			console.error('Error checking user downvote: invalid params', { commentId, uid })
 			return false
 		}
 	} catch (error) {
-		console.error('在验证用户是否已经对某评论点踩时出错：', error, { commentId, uid })
+		console.error('Error checking user downvote:', error, { commentId, uid })
 		return false
 	}
 }
 
 /**
- * 删除一条自己发布的视频评论
- * @param deleteSelfVideoCommentRequest 删除一条自己发布的视频评论请求载荷
- * @param uid 用户 UID
- * @param token 用户 UID 对应的 token
- * @returns 删除一条自己发布的视频评论请求响应
+ * Delete own comment
+ * @param deleteSelfVideoCommentRequest Request payload
+ * @param uid User UID
+ * @param token User token
+ * @returns Response
  */
 export const deleteSelfVideoCommentService = async (deleteSelfVideoCommentRequest: DeleteSelfVideoCommentRequestDto, uid: number, token: string): Promise<DeleteSelfVideoCommentResponseDto> => {
 	try {
 		if (!checkDeleteSelfVideoCommentRequest(deleteSelfVideoCommentRequest)) {
-			console.error('删除视频评论失败，参数不合法')
-			return { success: false, message: '删除视频评论失败，参数不合法' }
+			console.error('Delete comment failed: invalid parameters')
+			return { success: false, message: 'Delete comment failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenService(uid, token)).success) {
-			console.error('删除视频评论失败，用户校验未通过')
-			return { success: false, message: '删除视频评论失败，用户校验未通过' }
+			console.error('Delete comment failed: user verification failed')
+			return { success: false, message: 'Delete comment failed: user verification failed' }
 		}
 
-		const UUID = await getUserUuid(uid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+		const UUID = await getUserUuid(uid) // DELETE ME temporary; cookie should store UUID
 		if (!UUID) {
-			console.error('ERROR', '删除一条自己发布的视频评论失败，UUID 不存在', { uid })
-			return { success: false, message: '删除一条自己发布的视频评论失败，UUID 不存在' }
+			console.error('ERROR', 'Delete own comment failed: UUID not found', { uid })
+			return { success: false, message: 'Delete own comment failed: UUID not found' }
 		}
 
 		const { commentRoute, videoId } = deleteSelfVideoCommentRequest
@@ -923,18 +920,18 @@ export const deleteSelfVideoCommentService = async (deleteSelfVideoCommentReques
 			const deleteSelfVideoCommentSelectResult = await selectDataFromMongoDB<VideoComment>(deleteSelfVideoCommentWhere, deleteSelfVideoCommentSelect, videoCommentSchemaInstance, videoCommentSchemaName)
 
 			if (!deleteSelfVideoCommentSelectResult.success || !deleteSelfVideoCommentSelectResult.result || deleteSelfVideoCommentSelectResult.result.length !== 1) {
-				console.error('删除视频评论失败，检索视频评论结果为空或长度超过限制')
-				return { success: false, message: '删除视频评论失败，检索视频评论结果为空或长度超过限制' }
+				console.error('Delete comment failed: query empty or too many results')
+				return { success: false, message: 'Delete comment failed: query empty or too many results' }
 			}
 
 			const videoData = deleteSelfVideoCommentSelectResult.result[0]
 
 			if (videoData.uid !== uid) {
-				console.error('删除视频评论失败，只能删除自己的评论')
-				return { success: false, message: '删除视频评论失败，只能删除自己的评论' }
+				console.error('Delete comment failed: can only delete own comment')
+				return { success: false, message: 'Delete comment failed: can only delete own comment' }
 			}
 
-			// 启动事务
+			// Start transaction
 			const session = await mongoose.startSession()
 			session.startTransaction()
 
@@ -953,8 +950,8 @@ export const deleteSelfVideoCommentService = async (deleteSelfVideoCommentReques
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('删除视频评论失败，保存已删除视频评论失败')
-					return { success: false, message: '删除视频评论失败，记录失败' }
+					console.error('Delete comment failed: save backup failed')
+					return { success: false, message: 'Delete comment failed: save backup failed' }
 				}
 
 				const deleteSelfVideoCommentDeleteResult = await deleteDataFromMongoDB<VideoComment>(deleteSelfVideoCommentWhere, videoCommentSchemaInstance, videoCommentSchemaName, { session })
@@ -964,54 +961,54 @@ export const deleteSelfVideoCommentService = async (deleteSelfVideoCommentReques
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('删除视频评论失败，删除失败')
-					return { success: false, message: '删除视频评论失败，删除失败' }
+					console.error('Delete comment failed: delete failed')
+					return { success: false, message: 'Delete comment failed: delete failed' }
 				}
 
 				await session.commitTransaction()
 				session.endSession()
-				return { success: true, message: '删除视频评论成功' }
+				return { success: true, message: 'Delete comment success' }
 			} catch (error) {
 				if (session.inTransaction()) {
 					await session.abortTransaction()
 				}
 				session.endSession()
-				console.error('删除视频评论时出错：保存已删除视频评论出错', error)
-				return { success: false, message: '删除视频评论时出错：无法存储记录' }
+				console.error('Delete comment error: save backup error', error)
+				return { success: false, message: 'Delete comment error: cannot save record' }
 			}
 		} catch (error) {
-			console.error('删除视频评论时出错：检索视频评论出错', error)
-			return { success: false, message: '删除视频评论时出错：检索视频评论出错' }
+			console.error('Delete comment error: query error', error)
+			return { success: false, message: 'Delete comment error: query error' }
 		}
 	} catch (error) {
-		console.error('删除视频评论时出错：未知错误', error)
-		return { success: false, message: '删除视频评论时出错：未知错误' }
+		console.error('Delete comment error: unknown error', error)
+		return { success: false, message: 'Delete comment error: unknown error' }
 	}
 }
 
 /**
- * 管理员删除一条视频评论
- * @param adminDeleteVideoCommentRequest 管理员删除一个视频评论的请求载荷
- * @param adminUid 管理员 UID
- * @param adminToken 管理员 token
- * @returns 管理员删除一个视频评论的请求响应
+ * Admin delete a video comment
+ * @param adminDeleteVideoCommentRequest Request payload
+ * @param adminUid Admin UID
+ * @param adminToken Admin token
+ * @returns Response
  */
 export const adminDeleteVideoCommentService = async (adminDeleteVideoCommentRequest: AdminDeleteVideoCommentRequestDto, adminUid: number, adminToken: string): Promise<AdminDeleteVideoCommentResponseDto> => {
 	try {
 		if (!checkAdminDeleteVideoCommentRequest(adminDeleteVideoCommentRequest)) {
-			console.error('管理员删除视频评论失败，参数不合法')
-			return { success: false, message: '管理员删除视频评论失败，参数不合法' }
+			console.error('Admin delete comment failed: invalid parameters')
+			return { success: false, message: 'Admin delete comment failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenService(adminUid, adminToken)).success) {
-			console.error('管理员删除视频评论失败，用户校验未通过')
-			return { success: false, message: '管理员删除视频评论失败，用户校验未通过' }
+			console.error('Admin delete comment failed: user verification failed')
+			return { success: false, message: 'Admin delete comment failed: user verification failed' }
 		}
 
-		const adminUUID = await getUserUuid(adminUid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+		const adminUUID = await getUserUuid(adminUid) // DELETE ME temporary; cookie should store UUID
 		if (!adminUUID) {
-			console.error('ERROR', '管理员删除一条视频评论失败，adminUUID 不存在', { adminUid })
-			return { success: false, message: '管理员删除一条视频评论失败，adminUUID 不存在' }
+			console.error('ERROR', 'Admin delete comment failed: adminUUID not found', { adminUid })
+			return { success: false, message: 'Admin delete comment failed: adminUUID not found' }
 		}
 
 		const { commentRoute, videoId } = adminDeleteVideoCommentRequest
@@ -1045,11 +1042,11 @@ export const adminDeleteVideoCommentService = async (adminDeleteVideoCommentRequ
 			const deleteSelfVideoCommentSelectResult = await selectDataFromMongoDB<VideoComment>(deleteSelfVideoCommentWhere, deleteSelfVideoCommentSelect, videoCommentSchemaInstance, videoCommentSchemaName)
 
 			if (!deleteSelfVideoCommentSelectResult.success || !deleteSelfVideoCommentSelectResult.result || deleteSelfVideoCommentSelectResult.result.length !== 1) {
-				console.error('管理员删除视频评论失败，检索视频评论结果为空或长度超过限制')
-				return { success: false, message: '管理员删除视频评论失败，检索视频评论结果为空或长度超过限制' }
+				console.error('Admin delete comment failed: query empty or too many results')
+				return { success: false, message: 'Admin delete comment failed: query empty or too many results' }
 			}
 
-			// 启动事务
+			// Start transaction
 			const session = await mongoose.startSession()
 			session.startTransaction()
 
@@ -1068,8 +1065,8 @@ export const adminDeleteVideoCommentService = async (adminDeleteVideoCommentRequ
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('管理员删除视频评论失败，保存已删除视频评论失败')
-					return { success: false, message: '管理员删除视频评论失败，记录失败' }
+					console.error('Admin delete comment failed: save backup failed')
+					return { success: false, message: 'Admin delete comment failed: save backup failed' }
 				}
 
 				const deleteSelfVideoCommentDeleteResult = await deleteDataFromMongoDB<VideoComment>(deleteSelfVideoCommentWhere, videoCommentSchemaInstance, videoCommentSchemaName, { session })
@@ -1079,48 +1076,47 @@ export const adminDeleteVideoCommentService = async (adminDeleteVideoCommentRequ
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('管理员删除视频评论失败，删除失败')
-					return { success: false, message: '管理员删除视频评论失败，删除失败' }
+					console.error('Admin delete comment failed: delete failed')
+					return { success: false, message: 'Admin delete comment failed: delete failed' }
 				}
 
 				await session.commitTransaction()
 				session.endSession()
-				return { success: true, message: '管理员删除视频评论成功' }
+				return { success: true, message: 'Admin delete comment success' }
 			} catch (error) {
 				if (session.inTransaction()) {
 					await session.abortTransaction()
 				}
 				session.endSession()
-				console.error('管理员删除视频评论时出错：保存已删除视频评论出错', error)
-				return { success: false, message: '管理员删除视频评论时出错：无法存储记录' }
+				console.error('Admin delete comment error: save backup error', error)
+				return { success: false, message: 'Admin delete comment error: cannot save record' }
 			}
 		} catch (error) {
-			console.error('管理员删除视频评论时出错：检索视频评论出错', error)
-			return { success: false, message: '管理员删除视频评论时出错：检索视频评论出错' }
+			console.error('Admin delete comment error: query error', error)
+			return { success: false, message: 'Admin delete comment error: query error' }
 		}
 	} catch (error) {
-		console.error('管理员删除视频评论时出错：未知错误', error)
-		return { success: false, message: '管理员删除视频评论时出错：未知错误' }
+		console.error('Admin delete comment error: unknown error', error)
+		return { success: false, message: 'Admin delete comment error: unknown error' }
 	}
 }
 
-
 /**
- * 校验发送视频评论数据是否合法
- * @param emitVideoCommentRequest 视频评论
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate emit comment payload
+ * @param emitVideoCommentRequest Comment payload
+ * @returns true if valid
  */
 const checkEmitVideoCommentRequest = (emitVideoCommentRequest: EmitVideoCommentRequestDto): boolean => {
 	return (
-		emitVideoCommentRequest.text && emitVideoCommentRequest.text.length < 20000 // 视频评论正文不为空，且不长于 20000 字
-		&& emitVideoCommentRequest.videoId !== undefined && emitVideoCommentRequest.videoId !== null // 视频评论不能缺少视频 ID
+		emitVideoCommentRequest.text && emitVideoCommentRequest.text.length < 20000 // text not empty and < 20000 chars
+		&& emitVideoCommentRequest.videoId !== undefined && emitVideoCommentRequest.videoId !== null // must have videoId
 	)
 }
 
 /**
- * 校验获取某个用户对某个视频的评论的点赞情况的参数
- * @param getVideoCommentUpvoteProps 获取某个用户对某个视频的评论的点赞情况的参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate get user upvotes params
+ * @param getVideoCommentUpvoteProps Parameters
+ * @returns true if valid
  */
 const checkGetVideoCommentUpvoteProps = (getVideoCommentUpvoteProps: GetVideoCommentUpvotePropsDto): boolean => {
 	return (
@@ -1130,9 +1126,9 @@ const checkGetVideoCommentUpvoteProps = (getVideoCommentUpvoteProps: GetVideoCom
 }
 
 /**
- * 校验获取某个用户对某个视频的评论的点踩情况的参数
- * @param getVideoCommentDownvoteProps 获取某个用户对某个视频的评论的点踩情况的参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate get user downvotes params
+ * @param getVideoCommentDownvoteProps Parameters
+ * @returns true if valid
  */
 const checkGetVideoCommentDownvoteProps = (getVideoCommentDownvoteProps: GetVideoCommentDownvotePropsDto): boolean => {
 	return (
@@ -1142,18 +1138,18 @@ const checkGetVideoCommentDownvoteProps = (getVideoCommentDownvoteProps: GetVide
 }
 
 /**
- * 校验根据 KVID 获取视频评论的请求的参数
- * @param getVideoCommentByKvidRequest 根据 KVID 获取视频评论的请求的参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate get comment list by KVID request
+ * @param getVideoCommentByKvidRequest Parameters
+ * @returns true if valid
  */
 const checkGetVideoCommentByKvidRequest = (getVideoCommentByKvidRequest: GetVideoCommentByKvidRequestDto): boolean => {
 	return (getVideoCommentByKvidRequest.videoId !== undefined && getVideoCommentByKvidRequest.videoId !== null)
 }
 
 /**
- * 校验用户点赞的请求参数
- * @param emitVideoCommentUpvoteRequest 用户点赞的请求参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate upvote request
+ * @param emitVideoCommentUpvoteRequest Parameters
+ * @returns true if valid
  */
 const checkEmitVideoCommentUpvoteRequestData = (emitVideoCommentUpvoteRequest: EmitVideoCommentUpvoteRequestDto): boolean => {
 	return (
@@ -1163,9 +1159,9 @@ const checkEmitVideoCommentUpvoteRequestData = (emitVideoCommentUpvoteRequest: E
 }
 
 /**
- * 检查用户取消点赞的请求参数
- * @param cancelVideoCommentUpvoteRequest 用户取消点赞的请求参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate cancel upvote request
+ * @param cancelVideoCommentUpvoteRequest Parameters
+ * @returns true if valid
  */
 const checkCancelVideoCommentUpvoteRequest = (cancelVideoCommentUpvoteRequest: CancelVideoCommentUpvoteRequestDto): boolean => {
 	return (
@@ -1174,11 +1170,10 @@ const checkCancelVideoCommentUpvoteRequest = (cancelVideoCommentUpvoteRequest: C
 	)
 }
 
-
 /**
- * 校验用户点踩的请求参数
- * @param emitVideoCommentDownvoteRequest 用户点踩的请求参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate downvote request
+ * @param emitVideoCommentDownvoteRequest Parameters
+ * @returns true if valid
  */
 const checkEmitVideoCommentDownvoteRequestData = (emitVideoCommentDownvoteRequest: EmitVideoCommentDownvoteRequestDto): boolean => {
 	return (
@@ -1188,9 +1183,9 @@ const checkEmitVideoCommentDownvoteRequestData = (emitVideoCommentDownvoteReques
 }
 
 /**
- * 检查用户取消点踩的请求参数
- * @param cancelVideoCommentDownvoteRequest 用户取消点踩的请求参数
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate cancel downvote request
+ * @param cancelVideoCommentDownvoteRequest Parameters
+ * @returns true if valid
  */
 const checkCancelVideoCommentDownvoteRequest = (cancelVideoCommentDownvoteRequest: CancelVideoCommentDownvoteRequestDto): boolean => {
 	return (
@@ -1200,9 +1195,9 @@ const checkCancelVideoCommentDownvoteRequest = (cancelVideoCommentDownvoteReques
 }
 
 /**
- * 检查删除视频评论的请求载荷
- * @param deleteSelfVideoCommentRequest 删除视频评论的请求载荷
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate delete comment request (self)
+ * @param deleteSelfVideoCommentRequest Parameters
+ * @returns true if valid
  */
 const checkDeleteSelfVideoCommentRequest = (deleteSelfVideoCommentRequest: DeleteSelfVideoCommentRequestDto): boolean => {
 	return (
@@ -1212,9 +1207,9 @@ const checkDeleteSelfVideoCommentRequest = (deleteSelfVideoCommentRequest: Delet
 }
 
 /**
- * 检查管理员删除一个视频评论的请求载荷
- * @param adminDeleteVideoCommentRequest 管理员删除一个视频评论的请求载荷
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate admin delete comment request
+ * @param adminDeleteVideoCommentRequest Parameters
+ * @returns true if valid
  */
 const checkAdminDeleteVideoCommentRequest = (adminDeleteVideoCommentRequest: AdminDeleteVideoCommentRequestDto): boolean => {
 	return (

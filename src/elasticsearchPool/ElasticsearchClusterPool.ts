@@ -4,7 +4,7 @@ import { isEmptyObject } from '../common/ObjectTool.js'
 import { EsResultType, EsSchema2TsType } from './ElasticsearchClusterPoolTypes.js'
 
 /**
- * 创建 Elasticsearch 连接，这个函数在整个应用的生命周期里应该只被调用一次（only in elasticsearchMiddleware.ts）
+ * Create Elasticsearch connection (should be created once during app lifecycle; used by Fastify plugin)
  * @returns Elasticsearch 客户端连接
  */
 export const connectElasticSearchCluster = async (): Promise<Client> => {

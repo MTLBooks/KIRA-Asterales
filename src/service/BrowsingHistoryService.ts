@@ -6,11 +6,11 @@ import { BrowsingHistorySchema } from '../dbPool/schema/BrowsingHistorySchema.js
 import { checkUserTokenByUuidService, checkUserTokenService, getUserUid } from './UserService.js'
 
 /**
- * 更新或创建用户浏览历史
- * @param createBrowsingHistoryRequest 更新或创建用户浏览历史请求载荷
- * @param uid 用户 ID
- * @param token 用户安全令牌
- * @returns 更新或创建用户浏览历史响应结果
+ * Create or update user browsing history
+ * @param createBrowsingHistoryRequest Request payload
+ * @param uid User ID
+ * @param token User token
+ * @returns Response
  */
 export const createOrUpdateBrowsingHistoryService = async (createOrUpdateBrowsingHistoryRequest: CreateOrUpdateBrowsingHistoryRequestDto, cookieUuid: string, token: string): Promise<CreateOrUpdateBrowsingHistoryResponseDto> => {
 	try {
@@ -18,30 +18,30 @@ export const createOrUpdateBrowsingHistoryService = async (createOrUpdateBrowsin
 		const nowDate = new Date().getTime()
 
 		if (!checkCreateOrUpdateBrowsingHistoryRequest(createOrUpdateBrowsingHistoryRequest)) {
-			console.error('ERROR', '更新或创建用户浏览历史时出错，参数不合法')
-			return { success: false, message: '更新或创建用户浏览历史时出错，参数不合法' }
+			console.error('ERROR', 'Create/update browsing history failed: invalid parameters')
+			return { success: false, message: 'Create/update browsing history failed: invalid parameters' }
 		}
 
 		if (uuid !== cookieUuid) {
-			console.error('ERROR', '更新或创建用户浏览历史时出错，更新历史记录的目标用户与当前登录用户不一致，不允许更新其他用户的历史记录！')
-			return { success: false, message: '更新或创建用户浏览历史时出错，更新历史记录的目标用户与当前登录用户不一致，不允许更新其他用户的历史记录！' }
+			console.error('ERROR', 'Create/update browsing history failed: target user and current user mismatch; not allowed to update others\' history')
+			return { success: false, message: 'Create/update browsing history failed: target user and current user mismatch' }
 		}
 
 		if (!(await checkUserTokenByUuidService(cookieUuid, token)).success) {
-			console.error('ERROR', '更新或创建用户浏览历史时出错，用户校验失败')
-			return { success: false, message: '更新或创建用户浏览历史时出错，用户校验失败' }
+			console.error('ERROR', 'Create/update browsing history failed: token verification failed')
+			return { success: false, message: 'Create/update browsing history failed: token verification failed' }
 		}
 
 		const uid = await getUserUid(uuid) 
 		if (uid === undefined || typeof uid !== 'number' || uid <= 0) {
-			console.error('ERROR', '更新或创建用户浏览历史时出错，UID 不存在', { uuid })
-			return { success: false, message: '更新或创建用户浏览历史时出错，UID 不存在' }
+			console.error('ERROR', 'Create/update browsing history failed: UID not found', { uuid })
+			return { success: false, message: 'Create/update browsing history failed: UID not found' }
 		}
 
 		const { collectionName, schemaInstance } = BrowsingHistorySchema
 		type BrowsingHistoryType = InferSchemaType<typeof schemaInstance>
 
-		// 搜索数据
+		// Find existing doc
 		const BrowsingHistoryWhere: QueryType<BrowsingHistoryType> = {
 			UUID: uuid,
 			uid,
@@ -49,7 +49,7 @@ export const createOrUpdateBrowsingHistoryService = async (createOrUpdateBrowsin
 			id,
 		}
 
-		// 准备上传到 MongoDB 的数据
+		// Upsert data
 		const BrowsingHistoryData: BrowsingHistoryType = {
 			UUID: uuid,
 			uid,
@@ -64,24 +64,24 @@ export const createOrUpdateBrowsingHistoryService = async (createOrUpdateBrowsin
 			const insert2MongoDResult = await findOneAndUpdateData4MongoDB(BrowsingHistoryWhere, BrowsingHistoryData, schemaInstance, collectionName)
 			const result = insert2MongoDResult.result
 			if (insert2MongoDResult.success && result) {
-				return { success: true, message: '更新或创建用户浏览历史成功', result: result as CreateOrUpdateBrowsingHistoryResponseDto['result'] }
+				return { success: true, message: 'Create/update browsing history success', result: result as CreateOrUpdateBrowsingHistoryResponseDto['result'] }
 			}
 		} catch (error) {
-			console.error('ERROR', '更新或创建用户浏览历史时出错，插入数据时出错')
-			return { success: false, message: '更新或创建用户浏览历史时出错，插入数据时出错' }
+			console.error('ERROR', 'Create/update browsing history failed: upsert error')
+			return { success: false, message: 'Create/update browsing history failed: upsert error' }
 		}
 	} catch (error) {
-		console.error('ERROR', '更新或创建用户浏览历史时出错，未知原因：', error)
-		return { success: false, message: '更新或创建用户浏览历史时出错，未知原因' }
+		console.error('ERROR', 'Create/update browsing history failed: unknown error', error)
+		return { success: false, message: 'Create/update browsing history failed: unknown error' }
 	}
 }
 
 /**
- * 获取全部或过滤后的用户浏览历史，按对某一内容的最后访问时间降序排序
- * @param getUserBrowsingHistoryWithFilterRequest 获取用户浏览历史的请求载荷
- * @param uid 用户 ID
- * @param token 用户安全令牌
- * @returns 获取用户浏览历史的请求响应，全部或过滤后的用户浏览历史
+ * Get all or filtered browsing history, sorted by last access time desc
+ * @param getUserBrowsingHistoryWithFilterRequest Request payload
+ * @param uid User ID
+ * @param token User token
+ * @returns Response
  */
 export const getUserBrowsingHistoryWithFilterService = async (getUserBrowsingHistoryWithFilterRequest: GetUserBrowsingHistoryWithFilterRequestDto, uid: number, token: string): Promise<GetUserBrowsingHistoryWithFilterResponseDto> => {
 	try {
@@ -89,7 +89,7 @@ export const getUserBrowsingHistoryWithFilterService = async (getUserBrowsingHis
 			if ((await checkUserTokenService(uid, token)).success) {
 				const { collectionName, schemaInstance } = BrowsingHistorySchema
 
-				// TODO: 下方这个 Aggregate 只适用于视频历史记录的搜索
+				// TODO: The following aggregate only supports video history search
 				const videoHistoryAggregateProps: PipelineStage[] = [
 					{
 						$match: {
@@ -99,7 +99,7 @@ export const getUserBrowsingHistoryWithFilterService = async (getUserBrowsingHis
 					},
 					{
 						$addFields: {
-							id_number: { $toInt: '$id' }, // 将 video_id 从字符串转换为数字
+							id_number: { $toInt: '$id' }, // convert video_id to number
 						},
 					},
 					{
@@ -115,13 +115,13 @@ export const getUserBrowsingHistoryWithFilterService = async (getUserBrowsingHis
 					},
 					{
 						$match: {
-							'video_info.title': { $regex: getUserBrowsingHistoryWithFilterRequest.videoTitle ?? '', $options: 'i' }, // 使用正则表达式进行模糊查询，不区分大小写
+							'video_info.title': { $regex: getUserBrowsingHistoryWithFilterRequest.videoTitle ?? '', $options: 'i' }, // fuzzy search, case-insensitive
 						},
 					},
 					{
 						$lookup: {
 							from: 'user-infos',
-							localField: 'video_info.uploaderId', // 假设视频表中有 author_id 字段
+							localField: 'video_info.uploaderId', // assume author id exists on videos collection
 							foreignField: 'uid',
 							as: 'uploader_info',
 						},
@@ -131,7 +131,7 @@ export const getUserBrowsingHistoryWithFilterService = async (getUserBrowsingHis
 					},
 					{
 						$sort: {
-							lastUpdateDateTime: -1, // 按 lastUpdateDateTime 降序排序
+							lastUpdateDateTime: -1, // sort by lastUpdateDateTime desc
 						},
 					},
 					{
@@ -159,36 +159,36 @@ export const getUserBrowsingHistoryWithFilterService = async (getUserBrowsingHis
 					const browsingHistory = result.result
 					if (result.success && browsingHistory) {
 						if (browsingHistory.length > 0) {
-							return { success: true, message: '获取用户浏览历史成功', result: browsingHistory }
+							return { success: true, message: 'Get user browsing history success', result: browsingHistory }
 						} else {
-							return { success: true, message: '用户的浏览历史为空', result: [] }
+							return { success: true, message: 'Browsing history is empty', result: [] }
 						}
 					} else {
-						console.error('ERROR', '获取用户浏览历史时出错，未获取到数据')
-						return { success: false, message: '获取用户浏览历史时出错，未获取到数据' }
+						console.error('ERROR', 'Get user browsing history failed: no data')
+						return { success: false, message: 'Get user browsing history failed: no data' }
 					}
 				} catch (error) {
-					console.error('ERROR', '获取用户浏览历史时出错，获取用户浏览历史数据失败')
-					return { success: false, message: '获取用户浏览历史时出错，获取用户浏览历史数据失败' }
+					console.error('ERROR', 'Get user browsing history failed: query failed')
+					return { success: false, message: 'Get user browsing history failed: query failed' }
 				}
 			} else {
-				console.error('ERROR', '获取用户浏览历史时出错，用户校验失败')
-				return { success: false, message: '获取用户浏览历史时出错，用户校验失败' }
+				console.error('ERROR', 'Get user browsing history failed: token verification failed')
+				return { success: false, message: 'Get user browsing history failed: token verification failed' }
 			}
 		} else {
-			console.error('ERROR', '获取用户浏览历史时出错，请求参数不合法')
-			return { success: false, message: '获取用户浏览历史时出错，请求参数不合法' }
+			console.error('ERROR', 'Get user browsing history failed: invalid parameters')
+			return { success: false, message: 'Get user browsing history failed: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取用户浏览历史时出错，未知原因：', error)
-		return { success: false, message: '获取用户浏览历史时出错，未知原因' }
+		console.error('ERROR', 'Get user browsing history failed: unknown error', error)
+		return { success: false, message: 'Get user browsing history failed: unknown error' }
 	}
 }
 
 /**
- * 校验创建用户浏览历史的请求参数
- * @param createBrowsingHistoryRequest 创建用户浏览历史的请求参数
- * @returns 合法返回 true, 不合法返回 false
+ * Validate create browsing history request
+ * @param createBrowsingHistoryRequest Request payload
+ * @returns true if valid
  */
 const checkCreateOrUpdateBrowsingHistoryRequest = (createOrUpdateBrowsingHistoryRequest: CreateOrUpdateBrowsingHistoryRequestDto): boolean => {
 	return (
@@ -199,12 +199,12 @@ const checkCreateOrUpdateBrowsingHistoryRequest = (createOrUpdateBrowsingHistory
 }
 
 /**
- * 校验获取用户浏览历史的请求载荷
- * @param getUserBrowsingHistoryWithFilterRequest 获取用户浏览历史的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate get browsing history request
+ * @param getUserBrowsingHistoryWithFilterRequest Request payload
+ * @returns true if valid
  */
 const checkGetUserBrowsingHistoryWithFilterRequest = (getUserBrowsingHistoryWithFilterRequest: GetUserBrowsingHistoryWithFilterRequestDto): boolean => {
-	if (getUserBrowsingHistoryWithFilterRequest.videoTitle && getUserBrowsingHistoryWithFilterRequest.videoTitle.length > 200) { // 视频标题过滤字段存在，且长度大于 200 视为不合法
+	if (getUserBrowsingHistoryWithFilterRequest.videoTitle && getUserBrowsingHistoryWithFilterRequest.videoTitle.length > 200) { // video title too long
 		return false
 	} else {
 		return true

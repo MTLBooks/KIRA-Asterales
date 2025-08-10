@@ -8,46 +8,46 @@ import { buildBlockListMongooseFilter, checkIsBlockedByOtherUserService } from '
 import { checkVideoBlockedByKvidService, getVideoByKvidService } from './VideoService.js'
 
 /**
- * 用户发送弹幕
- * @param emitDanmakuRequest 用户发送的弹幕数据
- * @param uuid 用户的 UUID
- * @param token 用户的 token
- * @returns 用户发送弹幕的结果
+ * Emit danmaku
+ * @param emitDanmakuRequest Danmaku payload
+ * @param uuid User UUID
+ * @param token User token
+ * @returns Emit result
  */
 export const emitDanmakuService = async (emitDanmakuRequest: EmitDanmakuRequestDto, uuid: string, token: string): Promise<EmitDanmakuResponseDto> => {
 	try {
 		if (!checkEmitDanmakuRequest(emitDanmakuRequest)) {
-			console.error('ERROR', '弹幕发送失败，弹幕数据校验未通过：', { emitDanmakuRequest, uuid, token })
-			return { success: false, message: '弹幕发送失败，弹幕数据错误' }
+			console.error('ERROR', 'Emit danmaku failed: payload validation failed:', { emitDanmakuRequest, uuid, token })
+			return { success: false, message: 'Emit danmaku failed: invalid data' }
 		}
 
 		const { videoId } = emitDanmakuRequest
 		const uid = await getUserUid(uuid)
 		if (!uid) {
-			console.error('ERROR', '弹幕发送失败，用户ID不存在', { emitDanmakuRequest, uuid, token })
-			return { success: false, message: '弹幕发送失败，用户ID不存在' }
+			console.error('ERROR', 'Emit danmaku failed: user id not found', { emitDanmakuRequest, uuid, token })
+			return { success: false, message: 'Emit danmaku failed: user id not found' }
 		}
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '弹幕发送失败，用户校验未通过', { emitDanmakuRequest, uuid, token })
-			return { success: false, message: '弹幕发送失败，用户校验未通过' }
+			console.error('ERROR', 'Emit danmaku failed: token verification failed', { emitDanmakuRequest, uuid, token })
+			return { success: false, message: 'Emit danmaku failed: token verification failed' }
 		}
 
-		// 检查视频是否被屏蔽
+		// Check video block status
 		const selectorUuid = uuid
 		const selectorToken = token
 		const checkVideoBlockedResult = await checkVideoBlockedByKvidService(videoId, selectorUuid, selectorToken)
 		if (!checkVideoBlockedResult.success) {
-			console.error('ERROR', '弹幕发送失败，检查视频是否被屏蔽失败', { uid, token })
-			return { success: false, message: '弹幕发送失败，检查视频是否被屏蔽失败' }
+			console.error('ERROR', 'Emit danmaku failed: check block status failed', { uid, token })
+			return { success: false, message: 'Emit danmaku failed: check block status failed' }
 		}
 
 		if (checkVideoBlockedResult.isBlockedByOther) {
-			console.error('ERROR', '弹幕发送失败，用户被其他用户屏蔽', { uid, token })
-			return { success: false, message: '弹幕发送失败，用户被其他用户屏蔽' }
+			console.error('ERROR', 'Emit danmaku failed: blocked by other user', { uid, token })
+			return { success: false, message: 'Emit danmaku failed: blocked by other user' }
 		}
 		if (checkVideoBlockedResult.isBlocked) {
-			console.error('ERROR', '弹幕发送失败，用户已屏蔽上传者', { uid, token })
-			return { success: false, message: '弹幕发送失败，用户已屏蔽上传者' }
+			console.error('ERROR', 'Emit danmaku failed: uploader is blocked', { uid, token })
+			return { success: false, message: 'Emit danmaku failed: uploader is blocked' }
 		}
 
 		const { collectionName, schemaInstance } = DanmakuSchema
@@ -62,29 +62,29 @@ export const emitDanmakuService = async (emitDanmakuRequest: EmitDanmakuRequestD
 		try {
 			const insertData2MongoDBResult = await insertData2MongoDB(danmaku, schemaInstance, collectionName)
 			if (insertData2MongoDBResult && insertData2MongoDBResult.success) {
-				return { success: true, message: '弹幕发送成功！', danmaku: emitDanmakuRequest }
+				return { success: true, message: 'Emit danmaku success', danmaku: emitDanmakuRequest }
 			}
 		} catch (error) {
-			console.error('ERROR', '弹幕发送失败，无法存储到 MongoDB', error)
-			return { success: false, message: '弹幕发送失败，存储弹幕数据失败' }
+			console.error('ERROR', 'Emit danmaku failed: cannot save to MongoDB', error)
+			return { success: false, message: 'Emit danmaku failed: save failed' }
 		}
 
 	} catch (error) {
-		console.error('ERROR', '弹幕发送失败，错误信息：', error, { emitDanmakuRequest, uuid, token })
-		return { success: false, message: '弹幕发送失败，未知原因' }
+		console.error('ERROR', 'Emit danmaku failed: unknown error:', error, { emitDanmakuRequest, uuid, token })
+		return { success: false, message: 'Emit danmaku failed: unknown error' }
 	}
 }
 
 /**
- * 根据 kvid 获取视频弹幕列表
- * @param getDanmakuByKvidRequest 请求弹幕列表的查询参数
- * @returns 视频的弹幕列表
+ * Get danmaku list by KVID
+ * @param getDanmakuByKvidRequest Query params
+ * @returns Danmaku list
  */
 export const getDanmakuListByKvidService = async (getDanmakuByKvidRequest: GetDanmakuByKvidRequestDto, uuid?: string, token?: string): Promise<GetDanmakuByKvidResponseDto> => {
 	try {
 		if (!checkGetDanmakuByKvidRequest(getDanmakuByKvidRequest)) {
-			console.error('ERROR', '获取弹幕列表失败，数据校验失败', getDanmakuByKvidRequest)
-			return { success: false, message: '获取弹幕列表失败，数据校验失败' }
+			console.error('ERROR', 'Get danmaku list failed: validation failed', getDanmakuByKvidRequest)
+			return { success: false, message: 'Get danmaku list failed: validation failed' }
 		}
 
 		const { videoId } = getDanmakuByKvidRequest
@@ -124,7 +124,7 @@ export const getDanmakuListByKvidService = async (getDanmakuByKvidRequest: GetDa
 				...blockListFilter.filter,
 				{
 					$sort: {
-						editDateTime: 1, // 按 editDateTime 升序排序
+						editDateTime: 1, // sort by editDateTime ascending
 					},
 				},
 				{
@@ -139,7 +139,7 @@ export const getDanmakuListByKvidService = async (getDanmakuByKvidRequest: GetDa
 						mode: 1,
 						enableRainbow: 1,
 						editDateTime: 1,
-						...blockListFilter.additionalFields, // 黑名单过滤器的额外字段
+						...blockListFilter.additionalFields, // extra fields from blocklist filter
 					}
 				}
 			]
@@ -147,8 +147,8 @@ export const getDanmakuListByKvidService = async (getDanmakuByKvidRequest: GetDa
 			const danmakuResult = await selectDataByAggregateFromMongoDB<Danmaku>(schemaInstance, collectionName, getDanmakuPipeline)
 
 			if (!danmakuResult.success) {
-				console.error('ERROR', '获取弹幕列表失败，查询失败或结果为空：', getDanmakuByKvidRequest)
-				return { success: false, message: '获取弹幕列表失败，查询失败' }
+				console.error('ERROR', 'Get danmaku list failed: query failed or empty:', getDanmakuByKvidRequest)
+				return { success: false, message: 'Get danmaku list failed: query failed' }
 			}
 
 			const danmakuList = danmakuResult.result?.map(danmaku => {
@@ -157,45 +157,45 @@ export const getDanmakuListByKvidService = async (getDanmakuByKvidRequest: GetDa
 			})
 
 			if (danmakuList && danmakuList.length > 0) {
-				return { success: true, message: '获取弹幕列表成功', danmaku: danmakuList }
+				return { success: true, message: 'Get danmaku list success', danmaku: danmakuList }
 			} else {
-				return { success: true, message: '弹幕列表为空', danmaku: [] }
+				return { success: true, message: 'Danmaku list is empty', danmaku: [] }
 			}
 		} catch (error) {
-			console.error('ERROR', '获取弹幕列表失败，查询失败：', error, getDanmakuByKvidRequest)
-			return { success: false, message: '获取弹幕列表失败，查询失败' }
+			console.error('ERROR', 'Get danmaku list failed: query failed:', error, getDanmakuByKvidRequest)
+			return { success: false, message: 'Get danmaku list failed: query failed' }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取弹幕列表失败，错误信息：', error, getDanmakuByKvidRequest)
-		return { success: false, message: '获取弹幕列表失败，未知原因' }
+		console.error('ERROR', 'Get danmaku list failed: unknown error:', error, getDanmakuByKvidRequest)
+		return { success: false, message: 'Get danmaku list failed: unknown error' }
 	}
 }
 
 /**
- * 校验用户发送的弹幕的请求载荷
- * @param emitDanmakuRequest 用户发送的弹幕数据
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate danmaku payload
+ * @param emitDanmakuRequest Danmaku payload
+ * @returns true if valid
  */
 const checkEmitDanmakuRequest = (emitDanmakuRequest: EmitDanmakuRequestDto): boolean => {
 	const hexColorRegex = /^([0-9A-F]{3}([0-9A-F]{1})?|[0-9A-F]{6}([0-9A-F]{2})?)$/i
 	if (!emitDanmakuRequest.color || !(hexColorRegex.test(emitDanmakuRequest.color))) {
-		console.error('ERROR', '发送弹幕出错，弹幕数据非法：颜色为空或格式错误', emitDanmakuRequest)
+		console.error('ERROR', 'Emit danmaku failed: invalid color', emitDanmakuRequest)
 		return false
 	}
 	if (emitDanmakuRequest.enableRainbow === undefined || emitDanmakuRequest.enableRainbow === null) {
-		console.error('ERROR', '发送弹幕出错，弹幕数据非法：是否启用彩虹弹幕为空或格式错误', emitDanmakuRequest)
+		console.error('ERROR', 'Emit danmaku failed: enableRainbow is empty or invalid', emitDanmakuRequest)
 		return false
 	}
 	if (!emitDanmakuRequest.fontSize || !(['small', 'medium', 'large'].includes(emitDanmakuRequest.fontSize))) {
-		console.error('ERROR', '发送弹幕出错，弹幕数据非法：字体大小为空或格式错误', emitDanmakuRequest)
+		console.error('ERROR', 'Emit danmaku failed: invalid fontSize', emitDanmakuRequest)
 		return false
 	}
 	if (!emitDanmakuRequest.mode || !(['ltr', 'rtl', 'top', 'bottom'].includes(emitDanmakuRequest.mode))) {
-		console.error('ERROR', '发送弹幕出错，弹幕数据非法：弹幕模式为空或格式错误', emitDanmakuRequest)
+		console.error('ERROR', 'Emit danmaku failed: invalid mode', emitDanmakuRequest)
 		return false
 	}
 	if (!emitDanmakuRequest.text || emitDanmakuRequest.time === undefined || emitDanmakuRequest.time === null || !emitDanmakuRequest.videoId) {
-		console.error('ERROR', '发送弹幕出错，弹幕数据非法：必要的请求参数为空或格式错误', emitDanmakuRequest)
+		console.error('ERROR', 'Emit danmaku failed: required fields are empty or invalid', emitDanmakuRequest)
 		return false
 	}
 
@@ -203,11 +203,11 @@ const checkEmitDanmakuRequest = (emitDanmakuRequest: EmitDanmakuRequestDto): boo
 }
 
 /**
- * 校验获取弹幕列表的请求载荷
- * @param getDanmakuByKvidRequest 用户请求弹幕列表的请求载荷
- * @returns 校验结果，合法返回 true，不合法返回 false
+ * Validate get danmaku list request
+ * @param getDanmakuByKvidRequest Query payload
+ * @returns true if valid
  */
 const checkGetDanmakuByKvidRequest = (getDanmakuByKvidRequest: GetDanmakuByKvidRequestDto): boolean => {
-	// TODO 可能需要增加增加更多验证用来判断当前视频是否是一个已经存在的视频
+	// TODO: maybe add more validation to ensure the video exists
 	return (getDanmakuByKvidRequest.videoId !== undefined && getDanmakuByKvidRequest.videoId !== null)
 }

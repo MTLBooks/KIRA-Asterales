@@ -87,25 +87,25 @@ import { StorageClassAnalysisSchemaVersion } from '@aws-sdk/client-s3'
 import { FollowingSchema } from '../dbPool/schema/FeedSchema.js'
 import { checkBlockUserService, checkIsBlockedByOtherUserService } from './BlockService.js'
 
-authenticator.options = { window: 1 } // 设置 TOTP 宽裕一个窗口
+authenticator.options = { window: 1 } // Allow TOTP a grace window
 
 /**
- * 用户注册
- * @param userRegistrationRequest 用户注册时需要传入的信息（用户名，密码）
- * @returns UserRegistrationResponseDto 用户注册的结果，如果成功会包含 token
+ * User registration
+ * @param userRegistrationRequest Info needed for registration (username, password)
+ * @returns UserRegistrationResponseDto Registration result; includes token on success
  */
 export const userRegistrationService = async (userRegistrationRequest: UserRegistrationRequestDto): Promise<UserRegistrationResponseDto> => {
 	try {
 		if (checkUserRegistrationData(userRegistrationRequest)) {
-			if (!(await checkInvitationCodeService({ invitationCode: userRegistrationRequest.invitationCode })).isAvailableInvitationCode) { // DELETEME 仅在 beta 测试中使用
-				console.error('ERROR', '用户注册失败：邀请码无效')
-				return { success: false, message: '用户注册失败：邀请码无效' }
+			if (!(await checkInvitationCodeService({ invitationCode: userRegistrationRequest.invitationCode })).isAvailableInvitationCode) { // DELETEME used only in beta
+				console.error('ERROR', 'User registration failed: invalid invitation code')
+				return { success: false, message: 'User registration failed: invalid invitation code' }
 			}
 			const { email, passwordHash, passwordHint, verificationCode, username, userNickname } = userRegistrationRequest
 			const emailLowerCase = email.toLowerCase()
 
 			if (email && emailLowerCase && verificationCode) {
-				// 启动事务
+				// Start transaction
 				const session = await mongoose.startSession()
 				session.startTransaction()
 
@@ -125,16 +125,16 @@ export const userRegistrationService = async (userRegistrationRequest: UserRegis
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '用户注册失败：用户邮箱重复：', { email, emailLowerCase })
-						return { success: false, message: '用户注册失败：用户邮箱重复' }
+						console.error('ERROR', 'User registration failed: duplicate email:', { email, emailLowerCase })
+						return { success: false, message: 'User registration failed: duplicate email' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '用户注册失败：用户邮箱查重时出现异常：', error, { email, emailLowerCase })
-					return { success: false, message: '用户注册失败：用户邮箱查重时出现异常' }
+					console.error('ERROR', 'User registration failed: exception when checking duplicate email:', error, { email, emailLowerCase })
+					return { success: false, message: 'User registration failed: exception when checking duplicate email' }
 				}
 
 				const { collectionName: userVerificationCodeCollectionName, schemaInstance: userVerificationCodeSchemaInstance } = UserVerificationCodeSchema
@@ -146,7 +146,7 @@ export const userRegistrationService = async (userRegistrationRequest: UserRegis
 				}
 
 				const verificationCodeSelect: SelectType<UserVerificationCode> = {
-					emailLowerCase: 1, // 用户邮箱
+					emailLowerCase: 1, // user email
 				}
 
 				try {
@@ -156,16 +156,16 @@ export const userRegistrationService = async (userRegistrationRequest: UserRegis
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '用户注册失败：验证失败')
-						return { success: false, message: '用户注册失败：验证失败' }
+						console.error('ERROR', 'User registration failed: verification failed')
+						return { success: false, message: 'User registration failed: verification failed' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '用户注册失败：请求验证失败')
-					return { success: false, message: '用户注册失败：请求验证失败' }
+					console.error('ERROR', 'User registration failed: request verification failed')
+					return { success: false, message: 'User registration failed: request verification failed' }
 				}
 
 				const passwordHashHash = hashPasswordSync(passwordHash)
@@ -182,7 +182,7 @@ export const userRegistrationService = async (userRegistrationRequest: UserRegis
 					token,
 					passwordHint,
 					roles: ['user'], // newbie will always has a 'user' roles.
-					authenticatorType: 'none', // 刚注册的用户默认没有开启 2FA
+					authenticatorType: 'none', // New users do not enable 2FA by default
 					userCreateDateTime: now,
 					editDateTime: now,
 				}
@@ -228,56 +228,56 @@ export const userRegistrationService = async (userRegistrationRequest: UserRegis
 							try {
 								const useInvitationCodeResult = await useInvitationCode(useInvitationCodeDto)
 								if (!useInvitationCodeResult.success) {
-									console.error('ERROR', '用户使用邀请码时出错：更新邀请码使用者失败')
+									console.error('ERROR', 'Error using invitation code: failed to update inviter')
 								}
 							} catch (error) {
-								console.error('ERROR', '用户使用邀请码时出错：更新邀请码使用者时出错：', error)
+								console.error('ERROR', 'Error using invitation code: exception while updating inviter:', error)
 							}
 						}
 						await session.commitTransaction()
 						session.endSession()
-						return { success: true, uid, token, UUID: uuid, message: '用户注册成功' }
+						return { success: true, uid, token, UUID: uuid, message: 'User registration success' }
 					} else {
 						if (session.inTransaction()) {
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '用户注册失败：向 MongoDB 插入数据失败：')
-						return { success: false, message: '用户注册失败：保存数据失败' }
+						console.error('ERROR', 'User registration failed: insert into MongoDB failed')
+						return { success: false, message: 'User registration failed: save failed' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '用户注册失败：向 MongoDB 插入数据时出现异常：', error)
-					return { success: false, message: '用户注册失败：无法保存用户资料' }
+					console.error('ERROR', 'User registration failed: exception when inserting into MongoDB:', error)
+					return { success: false, message: 'User registration failed: cannot save user profile' }
 				}
 			} else {
-				console.error('ERROR', '用户注册失败：email 或 emailLowerCase 或 verificationCode 可能为空')
-				return { success: false, message: '用户注册失败：生成账户资料时失败' }
+				console.error('ERROR', 'User registration failed: email or emailLowerCase or verificationCode may be empty')
+				return { success: false, message: 'User registration failed: generate account data failed' }
 			}
 		} else {
-			console.error('ERROR', '用户注册失败：userRegistrationData 的非空验证没有通过')
-			return { success: false, message: '用户注册失败：非空验证没有通过' }
+			console.error('ERROR', 'User registration failed: userRegistrationData non-empty validation failed')
+			return { success: false, message: 'User registration failed: non-empty validation failed' }
 		}
 	} catch (error) {
-		console.error('userRegistrationService 函数中出现异常', error)
-		return { success: false, message: '用户注册失败：程序异常终止' }
+		console.error('Exception in userRegistrationService', error)
+		return { success: false, message: 'User registration failed: program terminated abnormally' }
 	}
 }
 
 /**
- * 用户登录
- * @param userLoginRequest 用户登录时需要传入的信息（用户名，密码）
- * @return UserLoginResponseDto 用户登录结果，如果登录成功会包含 token
+ * User login
+ * @param userLoginRequest Info needed for login (username, password)
+ * @return UserLoginResponseDto Login result; includes token on success
  */
 export const userLoginService = async (userLoginRequest: UserLoginRequestDto): Promise<UserLoginResponseDto> => {
 	try {
-		// 1. 检查请求参数是否合法
+		// 1. Validate request
 		if (!checkUserLoginRequest(userLoginRequest)) {
-			console.error('ERROR', '用户登录时程序异常：用户信息校验未通过')
-			return { success: false, message: '用户信息校验未通过' }
+			console.error('ERROR', 'User login error: payload validation failed')
+			return { success: false, message: 'Payload validation failed' }
 		}
 
 		const { email, passwordHash, clientOtp } = userLoginRequest
@@ -296,35 +296,35 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 			authenticatorType: 1,
 		}
 
-		// 2. 获取用户安全信息
+		// 2. Get user security info
 		const userAuthResult = await selectDataFromMongoDB<UserAuth>(userLoginWhere, userLoginSelect, schemaInstance, collectionName)
 		if (!userAuthResult?.result || userAuthResult.result?.length !== 1) {
-			console.error('ERROR', `用户登录（查询用户信息）时出现异常，用户邮箱：【${email}】，用户未注册或信息异常`)
-			return { success: false, email, message: '用户未注册或信息异常' }
+			console.error('ERROR', `Login error (query user): email:【${email}】, not registered or invalid info`)
+			return { success: false, email, message: 'Not registered or invalid info' }
 		}
 
 		const userAuthData = userAuthResult.result[0]
 		const { token, uid, UUID: uuid, authenticatorType } = userAuthData
 		if (!token || uid === null || uid === undefined || !uuid) {
-			console.error('ERROR', `登录失败，未能获取用户安全信息`)
-			return { success: false, message: '登录失败，未能获取用户安全信息' }
+			console.error('ERROR', `Login failed: cannot get user security info`)
+			return { success: false, message: 'Login failed: cannot get user security info' }
 		}
 
-		// 3. 检查用户密码是否正确
+		// 3. Check password
 		const isCorrectPassword = comparePasswordSync(passwordHash, userAuthData.passwordHashHash)
 		if (!isCorrectPassword) {
-			return { success: false, email, passwordHint: userAuthData.passwordHint, message: '用户密码错误' }
+			return { success: false, email, passwordHint: userAuthData.passwordHint, message: 'Wrong password' }
 		}
 
-		// 4. 判断用户是否启用了 2FA
+		// 4. Check 2FA status
 		if (authenticatorType === 'totp') { // 4.1 TOTP
-			const maxAttempts	 = 5 // 最大尝试次数
-			const lockTime = 60 * 60 * 1000 // 冷却时间
+			const maxAttempts	 = 5 // max attempts
+			const lockTime = 60 * 60 * 1000 // cooldown
 			const now = new Date().getTime()
 
 			if (!clientOtp) {
-				console.error('登录失败，启用了 TOTP 但用户未提供验证码', authenticatorType )
-				return { success: false, message:"登录失败，启用了 TOTP 但用户未提供验证码", authenticatorType }
+				console.error('Login failed: TOTP enabled but code not provided', authenticatorType )
+				return { success: false, message:"Login failed: TOTP enabled but code not provided", authenticatorType }
 			}
 
 			const { collectionName: userTotpAuthenticatorCollectionName, schemaInstance: userTotpAuthenticatorSchemaInstance } = UserTotpAuthenticatorSchema
@@ -334,7 +334,7 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 				enabled: true,
 			}
 
-			if (clientOtp.length > 6) { // 大于六位时，视为使用 TOTP 恢复码进行登录（登录成功后会删除 TOTP 2FA）
+			if (clientOtp.length > 6) { // Treat as using a TOTP recovery code to log in (on success, TOTP 2FA will be removed)
 				const userTotpAuthenticatorSelect: SelectType<UserAuthenticator> = {
 					recoveryCodeHash: 1,
 				}
@@ -342,16 +342,16 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 				const selectResult = await selectDataFromMongoDB<UserAuthenticator>(userTotpAuthenticatorWhere, userTotpAuthenticatorSelect, userTotpAuthenticatorSchemaInstance, userTotpAuthenticatorCollectionName)
 
 				if (!selectResult.success || selectResult.result.length !== 1) {
-					console.error('ERROR', '登录失败，获取验证数据失败 - 1')
-					return { success: false, message: '登录失败，获取验证数据失败 - 1', authenticatorType }
+					console.error('ERROR', 'Login failed: get verification data failed - 1')
+					return { success: false, message: 'Login failed: get verification data failed - 1', authenticatorType }
 				}
 
 				const recoveryCodeHash = selectResult.result[0].recoveryCodeHash
 				const isCorrectRecoveryCode = comparePasswordSync(clientOtp, recoveryCodeHash)
 
 				if (!isCorrectRecoveryCode) {
-					console.error('ERROR', '登录失败，恢复码错误')
-					return { success: false, message: '登录失败，恢复码错误', authenticatorType }
+					console.error('ERROR', 'Login failed: recovery code incorrect')
+					return { success: false, message: 'Login failed: recovery code incorrect', authenticatorType }
 				}
 
 				const session = await mongoose.startSession()
@@ -362,21 +362,21 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 					recoveryCodeHash,
 					session
 				}
-				const deleteResult = await deleteTotpAuthenticatorByRecoveryCode(deleteTotpAuthenticatorByRecoveryCodeData) // 如果使用恢复码登陆成功，则删除 TOTP 2FA
+				const deleteResult = await deleteTotpAuthenticatorByRecoveryCode(deleteTotpAuthenticatorByRecoveryCodeData) // Delete TOTP 2FA when logged in via recovery code
 
 				if (!deleteResult.success) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '登录失败，未能删除 TOTP 2FA')
-					return { success: false, message: '登录失败，未能删除 TOTP 2FA', authenticatorType }
+					console.error('ERROR', 'Login failed: could not delete TOTP 2FA')
+					return { success: false, message: 'Login failed: could not delete TOTP 2FA', authenticatorType }
 				}
 
 				await session.commitTransaction()
 				session.endSession()
-				return { success: true, email, uid, token, UUID: uuid, message: '使用恢复码登录成功，你的 TOTP 2FA 已删除', authenticatorType }
-			} else { // 不大于六位数时，视为使用 TOTP 验证码或 TOTP 备份码进行登录，先视为 TOTP 验证码尝试，如果验证失败，则视为 TOTP 备份码尝试，如果都失败，则响应登陆失败
+				return { success: true, email, uid, token, UUID: uuid, message: 'Login success with recovery code, your TOTP 2FA has been deleted', authenticatorType }
+			} else { // Treat as TOTP or backup code; try TOTP first, then backup
 				const userTotpAuthenticatorSelect: SelectType<UserAuthenticator> = {
 					secret: 1,
 					backupCodeHash: 1,
@@ -387,8 +387,8 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 				const selectResult = await selectDataFromMongoDB<UserAuthenticator>(userTotpAuthenticatorWhere, userTotpAuthenticatorSelect, userTotpAuthenticatorSchemaInstance, userTotpAuthenticatorCollectionName)
 
 				if (!selectResult.success || selectResult.result.length !== 1) {
-					console.error('ERROR', '登录失败，获取验证数据失败 - 2')
-					return { success: false, message: '登录失败，获取验证数据失败 - 2', authenticatorType }
+					console.error('ERROR', 'Login failed: get verification data failed - 2')
+					return { success: false, message: 'Login failed: get verification data failed - 2', authenticatorType }
 				}
 
 				let attempts = selectResult.result[0].attempts
@@ -396,18 +396,18 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 				const totpSecret = selectResult.result[0].secret
 				const listOfBackupCodeHash = selectResult.result[0].backupCodeHash
 
-				// 限制用户的登录频率
+				// Rate limit
 				if (selectResult.result[0].attempts >= maxAttempts) {
 					const lastAttemptTime = new Date(selectResult.result[0].lastAttemptTime).getTime();
 					if (now - lastAttemptTime < lockTime) {
 						attempts += 1
-						console.warn('WARN', 'WARNING', '用户登录失败，已达最大尝试次数，请稍后再试');
-						return { success: false, message: '登录失败，已达最大尝试次数，请稍后再试', isCoolingDown: true, authenticatorType };
+						console.warn('WARN', 'WARNING', 'Login failed: max attempts reached, try later');
+						return { success: false, message: 'Login failed: max attempts reached, try later', isCoolingDown: true, authenticatorType };
 					} else {
 						attempts = 0
 					}
 
-					//启动事务
+					// Start transaction
 					const session = await mongoose.startSession()
 					session.startTransaction()
 
@@ -422,14 +422,14 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '登录失败，更新最后尝试时间或尝试次数失败')
-						return { success: false, message: '登录失败，更新最后尝试时间或尝试次数失败', isCoolingDown: true, authenticatorType }
+						console.error('ERROR', 'Login failed: update last attempt time or attempts failed')
+						return { success: false, message: 'Login failed: update last attempt time or attempts failed', isCoolingDown: true, authenticatorType }
 					}
 				}
 
 				if (!authenticator.check(clientOtp, totpSecret)) {
 					attempts += 1
-					let useCorrectBackupCode = false // 用户是否使用了一个正确的备用码。
+					let useCorrectBackupCode = false // whether a correct backup code is used
 					const newBackupCodeHash = []
 					listOfBackupCodeHash.forEach( backupCodeHash => {
 						const isCorrectBackupCode = comparePasswordSync(clientOtp, backupCodeHash)
@@ -441,8 +441,8 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 					})
 
 					if (!useCorrectBackupCode) {
-						console.error('ERROR', '登录失败，验证码或备份码不正确');
-						return { success: false, message: '登录失败，验证码或备份码不正确', authenticatorType };
+						console.error('ERROR', 'Login failed: verification code or backup code incorrect');
+						return { success: false, message: 'Login failed: verification code or backup code incorrect', authenticatorType };
 					}
 					const session = await mongoose.startSession()
 					session.startTransaction()
@@ -454,7 +454,7 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 						lastAttemptTime: now,
 					}
 
-					// 使用备份码登录后，将除了已使用的备份码之外的备份码写回数据库（这样一来，备份码就无法被重复使用了）
+					// After login with backup code, write back remaining unused backup codes (to prevent reuse)
 					const updateAuthenticatorResult = await findOneAndUpdateData4MongoDB<UserAuthenticator>(userTotpAuthenticatorWhere, userLoginByBackupCodeUpdate, userTotpAuthenticatorSchemaInstance, userTotpAuthenticatorCollectionName, { session })
 
 					if (!updateAuthenticatorResult.success) {
@@ -462,26 +462,26 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '登录失败，更新备份码失败')
-						return { success: false, message: '登录失败，更新备份码失败', authenticatorType }
+						console.error('ERROR', 'Login failed: update backup code failed')
+						return { success: false, message: 'Login failed: update backup code failed', authenticatorType }
 					}
 
 					await commitAndEndSession(session)
-					return { success: true, email, uid, token, UUID: uuid, message: '用户使用备用码登录成功', authenticatorType }
+					return { success: true, email, uid, token, UUID: uuid, message: 'Login success with backup code', authenticatorType }
 				} else {
-					return { success: true, email, uid, token, UUID: uuid, message: '用户使用 TOTP 验证码登录成功', authenticatorType }
+					return { success: true, email, uid, token, UUID: uuid, message: 'Login success with TOTP code', authenticatorType }
 				}
 			}
 		} else if (authenticatorType === 'email') {
 			const { verificationCode } = userLoginRequest
 			if (!verificationCode) {
-				console.error('ERROR', '登录失败，启用了邮箱验证但用户未提供验证码')
-				return { success: false, message: '登录失败，启用了邮箱验证但用户未提供验证码', authenticatorType }
+				console.error('ERROR', 'Login failed: email verification enabled but code not provided')
+				return { success: false, message: 'Login failed: email verification enabled but code not provided', authenticatorType }
 			}
 
 			if (verificationCode.length !== 6) {
-				console.error('ERROR', '登录失败，验证码长度错误')
-				return { success: false, message: '登录失败，验证码长度错误', authenticatorType }
+				console.error('ERROR', 'Login failed: verification code length incorrect')
+				return { success: false, message: 'Login failed: verification code length incorrect', authenticatorType }
 			}
 
 			const checkVerificationCodeData = {
@@ -490,24 +490,24 @@ export const userLoginService = async (userLoginRequest: UserLoginRequestDto): P
 			}
 
 			if (!(await checkEmailAuthenticatorVerificationCodeService(checkVerificationCodeData)).success) {
-				console.error('ERROR', '登录失败，验证码错误')
-				return { success: false, message: '登录失败，验证码错误', authenticatorType }
+				console.error('ERROR', 'Login failed: verification code incorrect')
+				return { success: false, message: 'Login failed: verification code incorrect', authenticatorType }
 			}
 
-			return { success: true, email, uid, token, UUID: uuid, message: '用户登录成功', authenticatorType }
+			return { success: true, email, uid, token, UUID: uuid, message: 'Login success', authenticatorType }
 		} else {
-			return { success: true, email, uid, token, UUID: uuid, message: '用户登录成功', authenticatorType: 'none' }
+			return { success: true, email, uid, token, UUID: uuid, message: 'Login success', authenticatorType: 'none' }
 		}
 	} catch (error) {
-		console.error('ERROR', '用户登录时程序异常：', error)
-		return { success: false, message: '用户登录时程序异常' }
+		console.error('ERROR', 'User login error:', error)
+		return { success: false, message: 'User login failed: program terminated abnormally' }
 	}
 }
 
 /**
- * 检查一个用户邮箱是否存在（检查一个邮箱是否已经注册）
- * @param checkUserExistsCheckRequest 检查用户是否存在需要的信息（用户邮箱）
- * @return UserExistsCheckResponseDto 检查结果，如果存在或查询失败则 exists: true
+ * Check if a user email exists (check if an email is already registered)
+ * @param checkUserExistsCheckRequest Check if user exists; need information (user email)
+ * @return UserExistsCheckResponseDto Check result; if exists or query failed, exists: true
  */
 export const userEmailExistsCheckService = async (userEmailExistsCheckRequest: UserEmailExistsCheckRequestDto): Promise<UserEmailExistsCheckResponseDto> => {
 	try {
@@ -525,91 +525,91 @@ export const userEmailExistsCheckService = async (userEmailExistsCheckRequest: U
 			try {
 				result = await selectDataFromMongoDB(where, select, schemaInstance, collectionName)
 			} catch (error) {
-				console.error('ERROR', '验证用户邮箱是否存在（查询用户）时出现异常：', error)
-				return { success: false, exists: false, message: '验证用户邮箱是否存在时出现异常' }
+				console.error('ERROR', 'Exception when checking if user email exists (query user):', error)
+				return { success: false, exists: false, message: 'Exception when checking if user email exists' }
 			}
 
 			if (result && result.success && result.result) {
 				if (result.result?.length > 0) {
-					return { success: true, exists: true, message: '用户邮箱已存在' }
+					return { success: true, exists: true, message: 'User email already exists' }
 				} else {
-					return { success: true, exists: false, message: '用户邮箱不存在' }
+					return { success: true, exists: false, message: 'User email does not exist' }
 				}
 			} else {
-				return { success: false, exists: false, message: '邮箱查询失败' }
+				return { success: false, exists: false, message: 'Email query failed' }
 			}
 		} else {
-			console.error('ERROR', '查询用户邮箱是否存在时失败：参数不合法')
-			return { success: false, exists: false, message: '查询用户邮箱是否存在时失败：参数不合法' }
+			console.error('ERROR', 'Failed to check if user email exists: invalid parameters')
+			return { success: false, exists: false, message: 'Failed to check if user email exists: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '查询用户邮箱是否存在时出错：未知错误', error)
-		return { success: false, exists: false, message: '查询用户邮箱是否存在时出错：未知错误' }
+		console.error('ERROR', 'Exception when checking if user email exists:', error)
+		return { success: false, exists: false, message: 'Exception when checking if user email exists' }
 	}
 }
 
 /**
- * 修改用户的 email
- * @param updateUserEmailRequest 修改用户的 email 的请求参数
- * @param uid 用户 ID
- * @param token 用户 token
- * @returns 修改用户的 email 的请求响应
+ * Update user email
+ * @param updateUserEmailRequest Request parameters for updating user email
+ * @param uid User ID
+ * @param token User token
+ * @returns Response for updating user email request
  */
 export const updateUserEmailService = async (updateUserEmailRequest: UpdateUserEmailRequestDto, cookieUid: number, cookieToken: string): Promise<UpdateUserEmailResponseDto> => {
 	try {
-		// TODO: 向旧邮箱发送邮件以验证
+		// TODO: Send email to old email for verification
 		if (await checkUserToken(cookieUid, cookieToken)) {
 			if (checkUpdateUserEmailRequest(updateUserEmailRequest)) {
 				const { uid, oldEmail, newEmail, passwordHash, verificationCode } = updateUserEmailRequest
 				const now = new Date().getTime()
 
 				if (cookieUid !== uid) {
-					console.error('ERROR', '更新用户邮箱失败，cookie 中的 UID 与修改邮箱时使用的 UID 不同', { cookieUid, uid, oldEmail })
-					return { success: false, message: '更新用户邮箱失败，未指定正确的用户' }
+					console.error('ERROR', 'Failed to update user email: UID in cookie does not match UID used for email update', { cookieUid, uid, oldEmail })
+					return { success: false, message: 'Failed to update user email: incorrect user specified' }
 				}
 
 				const oldEmailLowerCase = oldEmail.toLowerCase()
 				const newEmailLowerCase = newEmail.toLowerCase()
 
-				// 启动事务
+				// Start transaction
 				const session = await mongoose.startSession()
 				session.startTransaction()
 
 				const { collectionName, schemaInstance } = UserAuthSchema
 				type UserAuth = InferSchemaType<typeof schemaInstance>
 
-				const userAuthWhere: QueryType<UserAuth> = { uid, emailLowerCase: oldEmailLowerCase, cookieToken } // 使用 uid, emailLowerCase 和 token 确保用户更新的是自己的邮箱，而不是其他用户的
+				const userAuthWhere: QueryType<UserAuth> = { uid, emailLowerCase: oldEmailLowerCase, cookieToken } // Use uid, emailLowerCase, and token to ensure user is updating their own email, not someone else's
 				const userAuthSelect: SelectType<UserAuth> = { passwordHashHash: 1, emailLowerCase: 1 }
 				try {
 					const userAuthResult = await selectDataFromMongoDB<UserAuth>(userAuthWhere, userAuthSelect, schemaInstance, collectionName, { session })
 					const userAuthData = userAuthResult.result
 					if (userAuthData) {
-						if (userAuthData.length !== 1) { // 确保只更新一个用户的邮箱
+						if (userAuthData.length !== 1) { // Ensure only one user's email is updated
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							console.error('ERROR', '更新用户邮箱失败，匹配到零个或多个用户', { uid, oldEmail })
-							return { success: false, message: '更新用户邮箱失败，无法找到正确的用户' }
+							console.error('ERROR', 'Failed to update user email: matched zero or multiple users', { uid, oldEmail })
+							return { success: false, message: 'Failed to update user email: unable to find correct user' }
 						}
 
-						const isCorrectPassword = comparePasswordSync(passwordHash, userAuthData[0].passwordHashHash) // 确保更新邮箱时输入的密码正确
+						const isCorrectPassword = comparePasswordSync(passwordHash, userAuthData[0].passwordHashHash) // Ensure password is correct when updating email
 						if (!isCorrectPassword) {
-							console.error('ERROR', '更新用户邮箱失败，用户密码不正确', { uid, oldEmail })
+							console.error('ERROR', 'Failed to update user email: incorrect user password', { uid, oldEmail })
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							return { success: false, message: '更新用户邮箱失败，用户密码不正确' }
+							return { success: false, message: 'Failed to update user email: incorrect user password' }
 						}
 					}
 				} catch (error) {
-					console.error('ERROR', '更新用户邮箱失败，校验用户密码时程序出现异常', error, { uid, oldEmail })
+					console.error('ERROR', 'Exception when checking user password for email update:', error, { uid, oldEmail })
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					return { success: false, message: '用户注册失败：校验用户密码失败' }
+					return { success: false, message: 'User registration failed: failed to check user password' }
 				}
 
 				try {
@@ -622,7 +622,7 @@ export const updateUserEmailService = async (updateUserEmailRequest: UpdateUserE
 					}
 
 					const verificationCodeSelect: SelectType<UserChangeEmailVerificationCode> = {
-						emailLowerCase: 1, // 用户邮箱
+						emailLowerCase: 1, // user email
 					}
 
 					const verificationCodeResult = await selectDataFromMongoDB<UserChangeEmailVerificationCode>(verificationCodeWhere, verificationCodeSelect, userChangeEmailVerificationCodeSchemaInstance, userChangeEmailVerificationCodeCollectionName, { session })
@@ -631,16 +631,16 @@ export const updateUserEmailService = async (updateUserEmailRequest: UpdateUserE
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '修改邮箱失败：验证失败')
-						return { success: false, message: '修改邮箱失败：验证失败' }
+						console.error('ERROR', 'Failed to update email: verification failed')
+						return { success: false, message: 'Failed to update email: verification failed' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '修改邮箱失败：请求验证失败')
-					return { success: false, message: '修改邮箱失败：请求验证失败' }
+					console.error('ERROR', 'Failed to update email: request verification failed')
+					return { success: false, message: 'Failed to update email: request verification failed' }
 				}
 
 				const updateUserEmailWhere: QueryType<UserAuth> = {
@@ -657,51 +657,51 @@ export const updateUserEmailService = async (updateUserEmailRequest: UpdateUserE
 						if (updateResult.result.matchedCount > 0 && updateResult.result.modifiedCount > 0) {
 							await session.commitTransaction()
 							session.endSession()
-							return { success: true, message: '用户邮箱更新成功' }
+							return { success: true, message: 'User email updated successfully' }
 						} else {
-							console.error('ERROR', '更新用户邮箱时，更新数量为 0', { uid, oldEmail, newEmail })
+							console.error('ERROR', 'Update user email failed: update count was 0', { uid, oldEmail, newEmail })
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							return { success: false, message: '用户邮箱更新失败，无法更新用户邮箱' }
+							return { success: false, message: 'Failed to update user email: unable to update user email' }
 						}
 					} else {
-						console.error('ERROR', '更新用户邮箱时，更新数量为 0', { uid, oldEmail, newEmail })
+						console.error('ERROR', 'Update user email failed: update count was 0', { uid, oldEmail, newEmail })
 						if (session.inTransaction()) {
 							await session.abortTransaction()
 						}
 						session.endSession()
-						return { success: false, message: '用户邮箱更新失败，无法更新用户邮箱' }
+						return { success: false, message: 'Failed to update user email: unable to update user email' }
 					}
 				} catch (error) {
-					console.error('ERROR', '更新用户邮箱出错', { uid, oldEmail, newEmail }, error)
+					console.error('ERROR', 'Exception when updating user email:', error, { uid, oldEmail, newEmail })
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					return { success: false, message: '用户邮箱更新失败，更新用户身份时出错' }
+					return { success: false, message: 'Failed to update user email: error when updating user identity' }
 				}
 			} else {
-				console.error('ERROR', '更新用户邮箱时失败，未获取到原始数据')
-				return { success: false, message: '用户邮箱更新失败，无法获取用户原始信息，数据可能为空' }
+				console.error('ERROR', 'Failed to update user email: original data not retrieved')
+				return { success: false, message: 'Failed to update user email: unable to retrieve original user data, data may be empty' }
 			}
 		} else {
-			console.error('ERROR', '更新用户邮箱时失败，用户不合法')
-			return { success: false, message: '用户邮箱更新失败，用户不合法' }
+			console.error('ERROR', 'Failed to update user email: invalid user')
+			return { success: false, message: 'Failed to update user email: invalid user' }
 		}
 	} catch (error) {
-		console.error('ERROR', '修改用户邮箱失败，未知错误：', error)
-		return { success: false, message: '修改用户邮箱失败，未知错误' }
+		console.error('ERROR', 'Exception when updating user email:', error)
+		return { success: false, message: 'Failed to update user email: unknown error' }
 	}
 }
 
 /**
- * 根据 UID 更新或创建用户信息
- * @param updateUserInfoRequest 更新或创建用户信息时的请求参数
- * @param uid 用户 ID
- * @param token 用户 token
- * @returns 更新或创建用户信息的请求结果
+ * Update or create user information based on UID
+ * @param updateUserInfoRequest Request parameters for updating or creating user information
+ * @param uid User ID
+ * @param token User token
+ * @returns Result of updating or creating user information request
  */
 export const updateOrCreateUserInfoService = async (updateOrCreateUserInfoRequest: UpdateOrCreateUserInfoRequestDto, uid: number, token: string): Promise<UpdateOrCreateUserInfoResponseDto> => {
 	try {
@@ -713,8 +713,8 @@ export const updateOrCreateUserInfoService = async (updateOrCreateUserInfoReques
 
 				if (username) {
 					if (!validateNameField(username) || !validateNameField(updateOrCreateUserInfoRequest.userNickname)) {
-						console.error('ERROR', '更新用户信息失败，用户名或昵称不合法，用户 UID:', uid)
-						return { success: false, message: '更新用户信息失败，用户名或昵称不合法' }
+						console.error('ERROR', 'Failed to update user information: invalid username or nickname, user UID:', uid)
+						return { success: false, message: 'Failed to update user information: invalid username or nickname' }
 					}
 
 					const getUserInfoWhere: QueryType<UserInfo> = {
@@ -739,15 +739,15 @@ export const updateOrCreateUserInfoService = async (updateOrCreateUserInfoReques
 					}
 
 					if (!isSafeUsername) {
-						console.error('ERROR', '更新用户信息失败，用户重名', { updateOrCreateUserInfoRequest, uid })
-						return { success: false, message: '更新用户信息失败，用户重名' }
+						console.error('ERROR', 'Failed to update user information: username already taken', { updateOrCreateUserInfoRequest, uid })
+						return { success: false, message: 'Failed to update user information: username already taken' }
 					}
 				}
 
 				const editOperatorUUID = await getUserUuid(uid)
 				if (!editOperatorUUID) {
-					console.error('ERROR', '更新或创建用户信息失败，UUID 不存在', { updateOrCreateUserInfoRequest, uid })
-					return { success: false, message: '更新或创建用户信息失败，UUID 不存在' }
+					console.error('ERROR', 'Failed to update or create user information: UUID does not exist', { updateOrCreateUserInfoRequest, uid })
+					return { success: false, message: 'Failed to update or create user information: UUID does not exist' }
 				}
 
 				const updateUserInfoWhere: QueryType<UserInfo> = {
@@ -763,29 +763,29 @@ export const updateOrCreateUserInfoService = async (updateOrCreateUserInfoReques
 				}
 				const updateResult = await findOneAndUpdateData4MongoDB(updateUserInfoWhere, updateUserInfoUpdate, schemaInstance, collectionName)
 				if (updateResult && updateResult.success && updateResult.result) {
-					return { success: true, message: '更新用户信息成功', result: updateResult.result }
+					return { success: true, message: 'User information updated successfully', result: updateResult.result }
 				} else {
-					console.error('ERROR', '更新用户信息失败，没有返回用户数据', { updateOrCreateUserInfoRequest, uid })
-					return { success: false, message: '更新用户信息失败，没有返回用户数据' }
+					console.error('ERROR', 'Failed to update user information: no user data returned', { updateOrCreateUserInfoRequest, uid })
+					return { success: false, message: 'Failed to update user information: no user data returned' }
 				}
 			} else {
-				console.error('ERROR', '更新用户信息时失败，未找到必要的数据，或者关联账户平台类型不合法：', { updateOrCreateUserInfoRequest, uid })
-				return { success: false, message: '更新用户数据时失败，必要的数据为空或关联平台信息出错' }
+				console.error('ERROR', 'Failed to update user information: necessary data not found, or invalid platform type for associated account:', { updateOrCreateUserInfoRequest, uid })
+				return { success: false, message: 'Failed to update user data: necessary data is empty or platform information error' }
 			}
 		} else {
-			console.error('ERROR', '更新用户数据时失败，token 校验失败，非法用户！', { updateOrCreateUserInfoRequest, uid })
-			return { success: false, message: '更新用户数据时失败，非法用户！' }
+			console.error('ERROR', 'Failed to update user data: invalid token verification, unauthorized user!', { updateOrCreateUserInfoRequest, uid })
+			return { success: false, message: 'Failed to update user data: unauthorized user!' }
 		}
 	} catch (error) {
-		console.error('ERROR', '更新用户信息时失败，未知异常', error)
-		return { success: false, message: '更新用户数据时失败，未知异常' }
+		console.error('ERROR', 'Exception when updating user information:', error)
+		return { success: false, message: 'Failed to update user data: unknown error' }
 	}
 }
 
 /**
- * 根据 UID 获取用户是否存在
- * @param UserExistsCheckByUIDRequestDto 获取用户是否存在的请求参数
- * @returns 获取用户是否存在的请求结果
+ * Check if a user exists based on UID
+ * @param UserExistsCheckByUIDRequestDto Request parameters for checking if user exists
+ * @returns Result of checking if user exists request
  */
 export const checkUserExistsByUIDService = async (userExistsCheckByUIDRequest: UserExistsCheckByUIDRequestDto): Promise<UserExistsCheckByUIDResponseDto> => {
 	try {
@@ -798,43 +798,43 @@ export const checkUserExistsByUIDService = async (userExistsCheckByUIDRequest: U
 			const result = await selectDataFromMongoDB<UserInfo>(where, select, schemaInstance, collectionName)
 			if (result.success) {
 				if (result.result?.length === 1) {
-					return { success: true, exists: true, message: '用户存在' }
+					return { success: true, exists: true, message: 'User exists' }
 				} else {
-					return { success: true, exists: false, message: '用户不存在' }
+					return { success: true, exists: false, message: 'User does not exist' }
 				}
 			} else {
-				console.error('ERROR', '获取用户是否存在时失败，查询失败')
-				return { success: false, exists: false, message: '获取用户是否存在时失败，查询失败' }
+				console.error('ERROR', 'Failed to check if user exists: query failed')
+				return { success: false, exists: false, message: 'Failed to check if user exists: query failed' }
 			}
 		} else {
-			console.error('ERROR', '获取用户是否存在时失败，请求参数不合法')
-			return { success: false, exists: false, message: '获取用户是否存在时失败，请求参数不合法' }
+			console.error('ERROR', 'Failed to check if user exists: invalid request parameters')
+			return { success: false, exists: false, message: 'Failed to check if user exists: invalid request parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取用户是否存在时失败，未知异常', error)
-		return { success: false, exists: false, message: '获取用户是否存在时失败，未知异常' }
+		console.error('ERROR', 'Exception when checking if user exists:', error)
+		return { success: false, exists: false, message: 'Failed to check if user exists: unknown error' }
 	}
 }
 
 /**
- * 【已废弃】通过 uid 获取当前登录的用户信息
- * // DELETE ME: 禁止使用！该 API 应随着 UUID 普及逐渐被替换
- * @param getSelfUserInfoRequest 获取当前登录的用户信息的请求参数
- * @returns 获取到的当前登录的用户信息
+ * [Deprecated] Get current logged-in user information via uid
+ * // DELETE ME: This API should be replaced as UUID becomes more widespread
+ * @param getSelfUserInfoRequest Request parameters for getting current logged-in user information
+ * @returns Current logged-in user information
  */
 export const getSelfUserInfoService = async (getSelfUserInfoRequest: GetSelfUserInfoRequestDto): Promise<GetSelfUserInfoResponseDto> => {
 	try {
 		const { uid, token } = getSelfUserInfoRequest
 		if (!uid || !token) {
-			console.error('ERROR', '通过 UID 获取用户信息失败，uid 或 token 为空')
-			return { success: false, message: '通过 UID 获取用户信息失败，必要的参数为空' }
+			console.error('ERROR', 'Failed to get user information via UID: uid or token is empty')
+			return { success: false, message: 'Failed to get user information via UID: necessary parameters are empty' }
 		}
 
-		const UUID = await getUserUuid(uid) // DELETE ME: 此为 UID 兼容性代码，随着 UUID 的普及，uid 将被逐渐废弃
+		const UUID = await getUserUuid(uid) // DELETE ME: This is UID compatibility code; as UUID becomes more widespread, uid will be gradually deprecated
 
 		if (!await checkUserToken(uid, token)) {
-			console.error('ERROR', '通过 UID 获取用户信息时失败，用户的 token 校验未通过，非法用户！')
-			return { success: false, message: '通过 UID 获取用户信息时失败，非法用户！' }
+			console.error('ERROR', 'Failed to get user information via UID: user token verification failed, unauthorized user!')
+			return { success: false, message: 'Failed to get user information via UID: unauthorized user!' }
 		}
 
 		const { collectionName: userAuthCollectionName, schemaInstance: userAuthSchemaInstance } = UserAuthSchema
@@ -857,7 +857,7 @@ export const getSelfUserInfoService = async (getSelfUserInfoRequest: GetSelfUser
 			{
 				$unwind: {
 					path: '$user_info_data',
-					preserveNullAndEmptyArrays: true // 保留没有用户信息的用户
+					preserveNullAndEmptyArrays: true // Keep users without user information
 				},
 			},
 			{
@@ -876,20 +876,20 @@ export const getSelfUserInfoService = async (getSelfUserInfoRequest: GetSelfUser
 			},
 			{
 				$project: {
-					email: 1, // 用户邮箱
-					userCreateDateTime: 1, // 用户创建日期
-					roles: 1, // 用户的角色
-					uid: 1, // 用户 UID
+					email: 1, // User email
+					userCreateDateTime: 1, // User creation date
+					roles: 1, // User roles
+					uid: 1, // User UID
 					UUID: 1, // UUID
-					authenticatorType: 1, // 2FA 的类型
-					userNickname: '$user_info_data.userNickname', // 用户昵称
-					username: '$user_info_data.username', // 用户名
-					label: '$user_info_data.label', // 用户标签
-					avatar: '$user_info_data.avatar', // 用户头像
-					userBannerImage: '$user_info_data.userBannerImage', // 用户的背景图
-					signature: '$user_info_data.signature', // 用户的个性签名
-					gender: '$user_info_data.gender', // 用户的性别
-					invitationCode: '$invitation_codes_data.invitationCode', // 用户的邀请码
+					authenticatorType: 1, // Type of 2FA
+					userNickname: '$user_info_data.userNickname', // User nickname
+					username: '$user_info_data.username', // User name
+					label: '$user_info_data.label', // User label
+					avatar: '$user_info_data.avatar', // User avatar
+					userBannerImage: '$user_info_data.userBannerImage', // User background image
+					signature: '$user_info_data.signature', // User signature
+					gender: '$user_info_data.gender', // User gender
+					invitationCode: '$invitation_codes_data.invitationCode', // User invitation code
 				}
 			}
 		]
@@ -899,43 +899,43 @@ export const getSelfUserInfoService = async (getSelfUserInfoRequest: GetSelfUser
 			if (userSelfInfoResult && userSelfInfoResult.success) {
 				const userInfo = userSelfInfoResult?.result
 				if (userInfo?.length === 0) {
-					return { success: true, message: '用户未填写用户信息', result: undefined }
+					return { success: true, message: 'User has not provided user information', result: undefined }
 				} else if (userInfo?.length === 1 && userInfo?.[0]) {
-					return { success: true, message: '获取用户信息成功', result: { ...userInfo[0], email: userInfo[0].email, userCreateDateTime: userInfo[0].userCreateDateTime, roles: userInfo[0].roles } }
+					return { success: true, message: 'User information retrieved successfully', result: { ...userInfo[0], email: userInfo[0].email, userCreateDateTime: userInfo[0].userCreateDateTime, roles: userInfo[0].roles } }
 				} else {
-					console.error('ERROR', '通过 UID 获取用户信息时失败，获取到的结果长度不为 1')
-					return { success: false, message: '通过 UID 获取用户信息时失败，结果异常' }
+					console.error('ERROR', 'Failed to get user information via UID: result length is not 1')
+					return { success: false, message: 'Failed to get user information via UID: result exception' }
 				}
 			} else {
-				console.error('ERROR', '通过 UUID 获取用户信息时失败，获取到的结果为空')
-				return { success: false, message: '通过 UID 获取用户信息时失败，结果为空' }
+				console.error('ERROR', 'Failed to get user information via UUID: result is empty')
+				return { success: false, message: 'Failed to get user information via UUID: result is empty' }
 			}
 		} catch (error) {
-			console.error('ERROR', '通过 UID 获取用户信息时出错，查询数据时出错：', error)
-			return { success: false, message: '通过 UID 获取用户信息时出错' }
+			console.error('ERROR', 'Exception when querying data for user information via UID:', error)
+			return { success: false, message: 'Failed to get user information via UID: query error' }
 		}
 	} catch (error) {
-		console.error('ERROR', '通过 UID 获取用户信息时出错，未知错误：', error)
-		return { success: false, message: '通过 UID 获取用户信息时出错，未知错误' }
+		console.error('ERROR', 'Exception when checking if user exists via UID:', error)
+		return { success: false, message: 'Failed to get user information via UID: unknown error' }
 	}
 }
 
 /**
- * 通过 UUID 获取当前登录的用户信息
- * @param getSelfUserInfoRequest 通过 UUID 获取当前登录的用户信息的请求参数
- * @returns 通过 UUID 获取当前登录的用户信息的请求响应
+ * Get current logged-in user information via UUID
+ * @param getSelfUserInfoRequest Request parameters for getting current logged-in user information via UUID
+ * @returns Response for getting current logged-in user information via UUID request
  */
 export const getSelfUserInfoByUuidService = async (getSelfUserInfoByUuidRequest: GetSelfUserInfoByUuidRequestDto): Promise<GetSelfUserInfoByUuidResponseDto> => {
 	try {
 		const { uuid, token } = getSelfUserInfoByUuidRequest
 		if (!uuid || !token) {
-			console.error('ERROR', '通过 UUID 获取用户信息失败，uuid 或 token 为空')
-			return { success: false, message: '通过 UUID 获取用户信息失败，必要的参数为空' }
+			console.error('ERROR', 'Failed to get user information via UUID: uuid or token is empty')
+			return { success: false, message: 'Failed to get user information via UUID: necessary parameters are empty' }
 		}
 
 		if (!await checkUserTokenByUUID(uuid, token)) {
-			console.error('ERROR', '通过 UUID 获取用户信息时失败，用户的 token 校验未通过，非法用户！')
-			return { success: false, message: '通过 UUID 获取用户信息时失败，非法用户！' }
+			console.error('ERROR', 'Failed to get user information via UUID: user token verification failed, unauthorized user!')
+			return { success: false, message: 'Failed to get user information via UUID: unauthorized user!' }
 		}
 
 		const { collectionName: userAuthCollectionName, schemaInstance: userAuthSchemaInstance } = UserAuthSchema
@@ -958,7 +958,7 @@ export const getSelfUserInfoByUuidService = async (getSelfUserInfoByUuidRequest:
 			{
 				$unwind: {
 					path: '$user_info_data',
-					preserveNullAndEmptyArrays: true // 保留没有用户信息的用户
+					preserveNullAndEmptyArrays: true // Keep users without user information
 				},
 			},
 			{
@@ -977,20 +977,20 @@ export const getSelfUserInfoByUuidService = async (getSelfUserInfoByUuidRequest:
 			},
 			{
 				$project: {
-					email: 1, // 用户邮箱
-					userCreateDateTime: 1, // 用户创建日期
-					roles: 1, // 用户的角色
-					uid: 1, // 用户 UID
+					email: 1, // User email
+					userCreateDateTime: 1, // User creation date
+					roles: 1, // User roles
+					uid: 1, // User UID
 					UUID: 1, // UUID
-					authenticatorType: 1, // 2FA 的类型
-					userNickname: '$user_info_data.userNickname', // 用户昵称
-					username: '$user_info_data.username', // 用户名
-					label: '$user_info_data.label', // 用户标签
-					avatar: '$user_info_data.avatar', // 用户头像
-					userBannerImage: '$user_info_data.userBannerImage', // 用户的背景图
-					signature: '$user_info_data.signature', // 用户的个性签名
-					gender: '$user_info_data.gender', // 用户的性别
-					invitationCode: '$invitation_codes_data.invitationCode', // 用户的邀请码
+					authenticatorType: 1, // Type of 2FA
+					userNickname: '$user_info_data.userNickname', // User nickname
+					username: '$user_info_data.username', // User name
+					label: '$user_info_data.label', // User label
+					avatar: '$user_info_data.avatar', // User avatar
+					userBannerImage: '$user_info_data.userBannerImage', // User background image
+					signature: '$user_info_data.signature', // User signature
+					gender: '$user_info_data.gender', // User gender
+					invitationCode: '$invitation_codes_data.invitationCode', // User invitation code
 				}
 			}
 		]
@@ -1000,33 +1000,33 @@ export const getSelfUserInfoByUuidService = async (getSelfUserInfoByUuidRequest:
 			if (userSelfInfoResult && userSelfInfoResult.success) {
 				const userInfo = userSelfInfoResult?.result
 				if (!userInfo || userInfo.length === 0) {
-					return { success: true, message: '用户未填写用户信息', result: undefined }
+					return { success: true, message: 'User has not provided user information', result: undefined }
 				} else if (userInfo?.length === 1 && userInfo?.[0]) {
-					return { success: true, message: '获取用户信息成功', result: { ...userInfo[0], email: userInfo[0].email, userCreateDateTime: userInfo[0].userCreateDateTime, roles: userInfo[0].roles } }
+					return { success: true, message: 'User information retrieved successfully', result: { ...userInfo[0], email: userInfo[0].email, userCreateDateTime: userInfo[0].userCreateDateTime, roles: userInfo[0].roles } }
 				} else {
-					console.error('ERROR', '通过 UUID 获取用户信息时失败，获取到的结果长度不为 1')
-					return { success: false, message: '通过 UUID 获取用户信息时失败，结果异常' }
+					console.error('ERROR', 'Failed to get user information via UUID: result length is not 1')
+					return { success: false, message: 'Failed to get user information via UUID: result exception' }
 				}
 			} else {
-				console.error('ERROR', '通过 UUID 获取用户信息时失败，获取到的结果为空')
-				return { success: false, message: '通过 UUID 获取用户信息时失败，结果为空' }
+				console.error('ERROR', 'Failed to get user information via UUID: result is empty')
+				return { success: false, message: 'Failed to get user information via UUID: result is empty' }
 			}
 		} catch (error) {
-			console.error('ERROR', '通过 UUID 获取用户信息时出错，查询数据时出错：', error)
-			return { success: false, message: '通过 UUID 获取用户信息时出错' }
+			console.error('ERROR', 'Exception when querying data for user information via UUID:', error)
+			return { success: false, message: 'Failed to get user information via UUID: query error' }
 		}
 	} catch (error) {
-		console.error('ERROR', '通过 UUID 获取用户信息时出错，未知错误：', error)
-		return { success: false, message: '通过 UUID 获取用户信息时出错，未知错误' }
+		console.error('ERROR', 'Exception when checking if user exists via UUID:', error)
+		return { success: false, message: 'Failed to get user information via UUID: unknown error' }
 	}
 }
 
 /**
- * 通过 uid 获取（其他）用户信息
- * @param getUserInfoByUidRequest 通过 UID 获取用户信息的请求载荷
- * @param selectorUuid 发起请求者的 UUID
- * @param selectorToken 发起请求者的 token
- * @returns 获取用户信息的请求结果
+ * Get user information via UID
+ * @param getUserInfoByUidRequest Request payload for getting user information via UID
+ * @param selectorUuid UUID of requester
+ * @param selectorToken Token of requester
+ * @returns Result of getting user information request
  */
 export const getUserInfoByUidService = async (getUserInfoByUidRequest: GetUserInfoByUidRequestDto, selectorUuid?: string, selectorToken?: string): Promise<GetUserInfoByUidResponseDto> => {
 	try {
@@ -1035,31 +1035,31 @@ export const getUserInfoByUidService = async (getUserInfoByUidRequest: GetUserIn
 		let isBlockedByOther = false
 
 		if (uid === null || uid === undefined) {
-			console.error('ERROR', '获取用户信息时失败，传入的 uid 或 token 为空')
-			return { success: false, message: '获取用户信息时失败，必要的参数为空', isBlockedByOther, isBlocked: false, isHidden }
+			console.error('ERROR', 'Failed to get user information: uid or token is empty')
+			return { success: false, message: 'Failed to get user information: necessary parameters are empty', isBlockedByOther, isBlocked: false, isHidden }
 		}
 
 		const checkBlockUserResult = await checkBlockUserService({ uid }, selectorUuid, selectorToken)
 		const checkIsBlockedByOtherUserResult = await checkIsBlockedByOtherUserService({ targetUid: uid }, selectorUuid, selectorToken)
 
-		// 1. 检查目标用户是否已经被当前用户隐藏
+		// 1. Check if target user is hidden from current user
 		if (checkBlockUserResult.isHidden) {
 			isHidden = true
 		}
 
-		// 2. 检查当前用户是否已经被目标用户屏蔽
+		// 2. Check if current user is blocked by target user
 		if (checkIsBlockedByOtherUserResult.isBlocked) {
 			isBlockedByOther = true
 		}
 
-		// 3. 检查当前用户是否与目标用户双向屏蔽
+		// 3. Check if current user is blocked by target user and vice versa
 		if (checkBlockUserResult.isBlocked && checkIsBlockedByOtherUserResult.isBlocked) {
-			return { success: true, message: '获取用户信息时失败，你与该用户已双向屏蔽', isBlockedByOther, isBlocked: true, isHidden }
+			return { success: true, message: 'Failed to get user information: you are both blocked by this user', isBlockedByOther, isBlocked: true, isHidden }
 		}
 
-		// 4. 检查目标用户是否已经被当前用户屏蔽
+		// 4. Check if target user is blocked by current user
 		if (checkBlockUserResult.isBlocked) {
-			return { success: true, message: '获取用户信息时失败，你已屏蔽该用户', isBlockedByOther, isBlocked: true, isHidden }
+			return { success: true, message: 'Failed to get user information: you have blocked this user', isBlockedByOther, isBlocked: true, isHidden }
 		}
 
 		const { collectionName: userAuthCollectionName, schemaInstance: userAuthSchemaInstance } = UserAuthSchema
@@ -1067,21 +1067,21 @@ export const getUserInfoByUidService = async (getUserInfoByUidRequest: GetUserIn
 		const userAuthWhere: QueryType<UserAuth> = { uid }
 		const userAuthSelect: SelectType<UserAuth> = {
 			UUID: 1, // UUID
-			userCreateDateTime: 1, // 用户创建日期
-			roles: 1, // 用户的角色
+			userCreateDateTime: 1, // User creation date
+			roles: 1, // User roles
 		}
 
 		const { collectionName: userInfoCollectionName, schemaInstance: userInfoSchemaInstance } = UserInfoSchema
 		type UserInfo = InferSchemaType<typeof userInfoSchemaInstance>
 		const getUserInfoWhere: QueryType<UserInfo> = { uid }
 		const getUserInfoSelect: SelectType<UserInfo> = {
-			label: 1, // 用户标签
-			username: 1, // 用户名
-			userNickname: 1, // 用户昵称
-			avatar: 1, // 用户头像
-			userBannerImage: 1, // 用户的背景图
-			signature: 1, // 用户的个性签名
-			gender: 1, // 用户的性别
+			label: 1, // User label
+			username: 1, // User name
+			userNickname: 1, // User nickname
+			avatar: 1, // User avatar
+			userBannerImage: 1, // User background image
+			signature: 1, // User signature
+			gender: 1, // User gender
 		}
 
 		try {
@@ -1091,21 +1091,21 @@ export const getUserInfoByUidService = async (getUserInfoByUidRequest: GetUserIn
 			const [userAuthResult, userInfoResult] = await Promise.all([userAuthPromise, userInfoPromise])
 			if (!userAuthResult || !userAuthResult.success || !userInfoResult || !userInfoResult.success) {
 				await abortAndEndSession(session)
-				console.error('ERROR', '获取用户信息时失败，获取到的结果为空')
-				return { success: false, message: '获取用户信息时失败，结果为空', isBlockedByOther, isBlocked: false, isHidden }
+				console.error('ERROR', 'Failed to get user information: result is empty')
+				return { success: false, message: 'Failed to get user information: result is empty', isBlockedByOther, isBlocked: false, isHidden }
 			}
 			const userAuth = userAuthResult?.result
 			const uuid = userAuth?.[0]?.UUID
 			const userInfo = userInfoResult?.result
 			if (userInfo?.length !== 1 || !userInfo[0] || userAuth?.length !== 1 || !uuid) {
 				await abortAndEndSession(session)
-				console.error('ERROR', '获取用户信息时失败，获取到的结果长度不为 1')
-				return { success: false, message: '获取用户信息时失败，结果异常', isBlockedByOther, isBlocked: false, isHidden }
+				console.error('ERROR', 'Failed to get user information: result length is not 1')
+				return { success: false, message: 'Failed to get user information: result exception', isBlockedByOther, isBlocked: false, isHidden }
 			}
 
-			let isSelf = uuid === selectorUuid // 查询的用户是否是自己。
-			let isFollowing = false; // 是否已关注该用户，默认没有被关注。
-			if ( selectorUuid && selectorToken && !isSelf && await checkUserTokenByUUID(selectorUuid, selectorToken)) { // 如果传递了 uuid 和 token，而且用户不是自己，且校验通过，则检查被获取信息的用户是否是已被关注。
+			let isSelf = uuid === selectorUuid // Check if queried user is self
+			let isFollowing = false; // Check if current user is following the queried user, default is not following
+			if ( selectorUuid && selectorToken && !isSelf && await checkUserTokenByUUID(selectorUuid, selectorToken)) { // If uuid and token are provided, and user is not self, check if queried user is already followed
 				const { collectionName: followingSchemaCollectionName, schemaInstance: followingSchemaInstance } = FollowingSchema
 				type Following = InferSchemaType<typeof followingSchemaInstance>
 
@@ -1129,7 +1129,7 @@ export const getUserInfoByUidService = async (getUserInfoByUidRequest: GetUserIn
 			await commitAndEndSession(session)
 			return {
 				success: true,
-				message: '获取用户信息成功',
+				message: 'User information retrieved successfully',
 				result: {
 					...userInfo[0],
 					userCreateDateTime: userAuth[0].userCreateDateTime,
@@ -1142,48 +1142,48 @@ export const getUserInfoByUidService = async (getUserInfoByUidRequest: GetUserIn
 				isHidden,
 			}
 		} catch (error) {
-			console.error('ERROR', '获取用户信息时失败，查询数据时出错：', error)
-			return { success: false, message: '获取用户信息时失败', isBlockedByOther, isBlocked: false, isHidden }
+			console.error('ERROR', 'Exception when querying data for user information:', error)
+			return { success: false, message: 'Failed to get user information: query error', isBlockedByOther, isBlocked: false, isHidden }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取用户信息时失败，未知错误：', error)
-		return { success: false, message: '获取用户信息时失败，未知错误', isBlockedByOther: false, isBlocked: false, isHidden: false }
+		console.error('ERROR', 'Exception when checking if user exists:', error)
+		return { success: false, message: 'Failed to get user information: unknown error', isBlockedByOther: false, isBlocked: false, isHidden: false }
 	}
 }
 
 /**
- * 更新用户头像，并获取用于用户上传头像的预签名 URL, 上传限时 60 秒
- * @param uid 用户 ID
- * @param token 用户 token
- * @returns 用于用户上传头像的预签名 URL 的结果
+ * Update user avatar and get pre-signed URL for user to upload avatar, upload time limited to 60 seconds
+ * @param uid User ID
+ * @param token User token
+ * @returns Result of getting pre-signed URL for user to upload avatar
  */
 export const getUserAvatarUploadSignedUrlService = async (uid: number, token: string): Promise<GetUserAvatarUploadSignedUrlResponseDto> => {
-	// TODO 图片上传逻辑需要重写，当前如何用户上传图片失败，仍然会用新头像链接替换数据库中的旧头像链接，而且当前图片没有加入审核流程
+	// TODO: Image upload logic needs to be rewritten; current method will replace the old avatar link in the database even if the image fails to upload, and the current image is not added to the review process
 	try {
 		if (await checkUserToken(uid, token)) {
 			const now = new Date().getTime()
 			const fileName = `avatar-${uid}-${generateSecureRandomString(32)}-${now}`
 			const signedUrl = await createCloudflareImageUploadSignedUrl(fileName, 660)
 			if (signedUrl && fileName) {
-				return { success: true, message: '准备开始上传头像', userAvatarUploadSignedUrl: signedUrl, userAvatarFilename: fileName }
+				return { success: true, message: 'Preparing to upload avatar', userAvatarUploadSignedUrl: signedUrl, userAvatarFilename: fileName }
 			} else {
-				// TODO 图片上传逻辑需要重写，当前如何用户上传图片失败，仍然会用新头像链接替换数据库中的旧头像链接，而且当前图片没有加入审核流程
-				return { success: false, message: '上传失败，无法生成图片上传 URL，请重新上传头像' }
+				// TODO: Image upload logic needs to be rewritten; current method will replace the old avatar link in the database even if the image fails to upload, and the current image is not added to the review process
+				return { success: false, message: 'Upload failed: unable to generate image upload URL, please try uploading avatar again' }
 			}
 		} else {
-			console.error('ERROR', '获取上传图片用的预签名 URL 失败，用户不合法', { uid })
-			return { success: false, message: '上传失败，无法获取上传权限' }
+			console.error('ERROR', 'Failed to get pre-signed URL for image upload: invalid user', { uid })
+			return { success: false, message: 'Upload failed: unable to get upload permission' }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取上传图片用的预签名 URL 失败，错误信息', error, { uid })
+		console.error('ERROR', 'Failed to get pre-signed URL for image upload:', error, { uid })
 	}
 }
 
 /**
- * 获取用户个性设置数据
- * @param uid 用户 ID
- * @param token 用户 token
- * @returns 用户个性设置数据
+ * Get user personal settings data
+ * @param uid User ID
+ * @param token User token
+ * @returns User personal settings data
  */
 export const getUserSettingsService = async (uid: number, token: string): Promise<GetUserSettingsResponseDto> => {
 	try {
@@ -1223,40 +1223,40 @@ export const getUserSettingsService = async (uid: number, token: string): Promis
 				const userSettingsResult = await selectDataFromMongoDB(getUserSettingsWhere, getUserSettingsSelect, schemaInstance, collectionName)
 				const userSettings = userSettingsResult?.result?.[0]
 				if (userSettingsResult?.success && userSettings) {
-					return { success: true, message: '获取用户设置成功！', userSettings }
+					return { success: true, message: 'User settings retrieved successfully!', userSettings }
 				} else {
-					console.error('ERROR', '获取用户个性设置失败，查询成功，但获取数据失败或数据为空：', { uid })
-					return { success: false, message: '获取用户个性设置失败，数据查询未成功' }
+					console.error('ERROR', 'Failed to get user personal settings: query successful but data retrieval failed or data is empty:', { uid })
+					return { success: false, message: 'Failed to get user personal settings: query unsuccessful' }
 				}
 			} catch (error) {
-				console.error('ERROR', '获取用户个性设置失败，查询数据时出错：', { uid })
-				return { success: false, message: '获取用户个性设置失败，查询数据时出错' }
+				console.error('ERROR', 'Exception when querying data for user personal settings:', error, { uid })
+				return { success: false, message: 'Failed to get user personal settings: query error' }
 			}
 		} else {
-			console.error('ERROR', '获取用户个性设置失败，用户验证时未通过：', { uid })
-			return { success: false, message: '获取用户个性设置失败，用户验证时未通过' }
+			console.error('ERROR', 'Failed to get user personal settings: user verification failed:', { uid })
+			return { success: false, message: 'Failed to get user personal settings: user verification failed' }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取用户个性设置失败，未知异常：', error)
-		return { success: false, message: '获取用户个性设置失败，未知异常' }
+		console.error('ERROR', 'Exception when getting user personal settings:', error)
+		return { success: false, message: 'Failed to get user personal settings: unknown error' }
 	}
 }
 
 /**
- * 根据 UID 更新或创建用户设置
- * @param updateOrCreateUserSettingsRequest 更新或创建用户设置时的请求参数
- * @param uid 用户 ID
- * @param token 用户 token
- * @returns 更新或创建用户设置的请求结果
+ * Update or create user settings based on UID
+ * @param updateOrCreateUserSettingsRequest Request parameters for updating or creating user settings
+ * @param uid User ID
+ * @param token User token
+ * @returns Result of updating or creating user settings request
  */
 export const updateOrCreateUserSettingsService = async (updateOrCreateUserSettingsRequest: UpdateOrCreateUserSettingsRequestDto, uid: number, token: string): Promise<UpdateOrCreateUserSettingsResponseDto> => {
 	try {
 		const now = new Date().getTime();
 		if (await checkUserToken(uid, token)) {
-			const UUID = await getUserUuid(uid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+			const UUID = await getUserUuid(uid) // DELETE ME This is a temporary workaround; UUID should be stored in cookies
 			if (!UUID) {
-				console.error('ERROR', '更新或创建用户设置失败，UUID 不存在', { updateOrCreateUserSettingsRequest, uid })
-				return { success: false, message: '更新或创建用户设置失败，UUID 不存在' }
+				console.error('ERROR', 'Failed to update or create user settings: UUID does not exist', { updateOrCreateUserSettingsRequest, uid })
+				return { success: false, message: 'Failed to update or create user settings: UUID does not exist' }
 			}
 
 			if (checkUpdateOrCreateUserSettingsRequest(updateOrCreateUserSettingsRequest)) {
@@ -1274,81 +1274,81 @@ export const updateOrCreateUserSettingsService = async (updateOrCreateUserSettin
 				const updateResult = await findOneAndUpdateData4MongoDB(updateOrCreateUserSettingsWhere, updateOrCreateUserSettingsUpdate, schemaInstance, collectionName)
 				const userSettings = updateResult?.result?.[0]
 				if (updateResult?.success) {
-					return { success: true, message: '更新或创建用户设置成功', userSettings: userSettings || updateOrCreateUserSettingsUpdate }
+					return { success: true, message: 'User settings updated or created successfully', userSettings: userSettings || updateOrCreateUserSettingsUpdate }
 				} else {
-					console.error('ERROR', '更新或创建用户设置失败，没有返回用户设置数据', { updateOrCreateUserSettingsRequest, uid })
-					return { success: false, message: '更新或创建用户设置失败，没有返回用户设置数据' }
+					console.error('ERROR', 'Failed to update or create user settings: no user settings data returned', { updateOrCreateUserSettingsRequest, uid })
+					return { success: false, message: 'Failed to update or create user settings: no user settings data returned' }
 				}
 			} else {
-				console.error('ERROR', '更新或创建用户设置失败，未找到必要的数据，或者关联账户平台类型不合法：', { updateOrCreateUserSettingsRequest, uid })
-				return { success: false, message: '更新或创建用户设置失败，必要的数据为空或关联平台信息出错' }
+				console.error('ERROR', 'Failed to update or create user settings: necessary data not found, or invalid platform type for associated account:', { updateOrCreateUserSettingsRequest, uid })
+				return { success: false, message: 'Failed to update or create user settings: necessary data is empty or platform information error' }
 			}
 		} else {
-			console.error('ERROR', '更新或创建用户设置失败，token 校验失败，非法用户！', { updateOrCreateUserSettingsRequest, uid })
-			return { success: false, message: '更新或创建用户设置失败，非法用户！' }
+			console.error('ERROR', 'Failed to update or create user settings: invalid token verification, unauthorized user!', { updateOrCreateUserSettingsRequest, uid })
+			return { success: false, message: 'Failed to update or create user settings: unauthorized user!' }
 		}
 	} catch (error) {
-		console.error('ERROR', '更新或创建用户设置时失败，未知异常', error)
-		return { success: false, message: '更新或创建用户设置失败，未知异常' }
+		console.error('ERROR', 'Exception when updating or creating user settings:', error)
+		return { success: false, message: 'Failed to update or create user settings: unknown error' }
 	}
 }
 
 /**
- * 用户校验
- * @param uid 用户 ID, 为空时会导致校验失败
- * @param token 用户 ID 对应的 token，为空时会导致校验失败
- * @returns 校验结果
+ * User verification
+ * @param uid User ID, empty will cause verification failure
+ * @param token User ID corresponding token, empty will cause verification failure
+ * @returns Verification result
  */
 export const checkUserTokenService = async (uid: number, token: string): Promise<CheckUserTokenResponseDto> => {
 	try {
 		if (uid !== undefined && uid !== null && token) {
 			const checkUserTokenResult = await checkUserToken(uid, token)
 			if (checkUserTokenResult) {
-				return { success: true, message: '用户校验成功', userTokenOk: true }
+				return { success: true, message: 'User verification successful', userTokenOk: true }
 			} else {
-				console.error('ERROR', `用户校验失败！非法用户！用户 UID：${uid}`)
-				return { success: false, message: '用户校验失败！非法用户！', userTokenOk: false }
+				console.error('ERROR', `User verification failed! Unauthorized user! User UID: ${uid}`)
+				return { success: false, message: 'User verification failed! Unauthorized user!', userTokenOk: false }
 			}
 		} else {
-			console.error('ERROR', `用户校验失败！用户 uid 或 token 不存在，用户 UID：${uid}`)
-			return { success: false, message: '用户校验失败！', userTokenOk: false }
+			console.error('ERROR', `User verification failed! User uid or token does not exist, User UID: ${uid}`)
+			return { success: false, message: 'User verification failed!', userTokenOk: false }
 		}
 	} catch {
-		console.error('ERROR', `用户校验异常！用户 UID：${uid}`)
-		return { success: false, message: '用户校验异常！', userTokenOk: false }
+		console.error('ERROR', `Exception when checking user verification! User UID: ${uid}`)
+		return { success: false, message: 'User verification failed!', userTokenOk: false }
 	}
 }
 
 /**
- * 通过 UUID 校验用户
- * @param UUID 用户 UUID
- * @param token 用户 ID 对应的 token，为空时会导致校验失败
- * @returns 校验结果
+ * Check user token by UUID
+ * @param UUID User UUID
+ * @param token User ID corresponding token, empty will cause verification failure
+ * @returns Verification result
  */
 export const checkUserTokenByUuidService = async (UUID: string, token: string): Promise<CheckUserTokenResponseDto> => {
 	try {
 		if (UUID !== undefined && UUID !== null && token) {
 			const checkUserTokenResult = await checkUserTokenByUUID(UUID, token)
 			if (checkUserTokenResult) {
-				return { success: true, message: '用户校验成功', userTokenOk: true }
+				return { success: true, message: 'User verification successful', userTokenOk: true }
 			} else {
-				console.error('ERROR', `用户校验失败！非法用户！用户 UUID：${UUID}`)
-				return { success: false, message: '用户校验失败！非法用户！', userTokenOk: false }
+				console.error('ERROR', `User verification failed! Unauthorized user! User UUID: ${UUID}`)
+				return { success: false, message: 'User verification failed! Unauthorized user!', userTokenOk: false }
 			}
 		} else {
-			console.error('ERROR', `用户校验失败！用户 UUID 或 token 不存在，用户 UUID：${UUID}`)
-			return { success: false, message: '用户校验失败！', userTokenOk: false }
+			console.error('ERROR', `User verification failed! User UUID or token does not exist, User UUID: ${UUID}`)
+			return { success: false, message: 'User verification failed!', userTokenOk: false }
 		}
 	} catch {
-		console.error('ERROR', `用户校验异常！用户 UUID：${UUID}`)
-		return { success: false, message: '用户校验异常！', userTokenOk: false }
+		console.error('ERROR', `Exception when checking user verification! User UUID: ${UUID}`)
+		return { success: false, message: 'User verification failed!', userTokenOk: false }
 	}
 }
 
 /**
- * 请求发送验证码
- * @param requestSendVerificationCodeRequest 请求发送验证码的请求载荷
- * @returns 请求发送验证码的请求响应
+ * Request to send verification code
+ * @param requestSendVerificationCodeRequest Request parameters for sending verification code
+ * @returns Response for sending verification code request
  */
 export const RequestSendVerificationCodeService = async (requestSendVerificationCodeRequest: RequestSendVerificationCodeRequestDto): Promise<RequestSendVerificationCodeResponseDto> => {
 	try {
@@ -1365,12 +1365,12 @@ export const RequestSendVerificationCodeService = async (requestSendVerification
 			}
 
 			const requestSendVerificationCodeSelect: SelectType<UserVerificationCode> = {
-				emailLowerCase: 1, // 用户邮箱
+				emailLowerCase: 1, // User email
 				attemptsTimes: 1,
-				lastRequestDateTime: 1, // 用户上一次请求验证码的时间，用于防止滥用
+				lastRequestDateTime: 1, // Time of last request for verification code, used to prevent abuse
 			}
 
-			// 启动事务
+			// Start transaction
 			const session = await mongoose.startSession()
 			session.startTransaction()
 
@@ -1379,10 +1379,10 @@ export const RequestSendVerificationCodeService = async (requestSendVerification
 				if (requestSendVerificationCodeResult.success) {
 					const lastRequestDateTime = requestSendVerificationCodeResult.result?.[0]?.lastRequestDateTime ?? 0
 					const attemptsTimes = requestSendVerificationCodeResult.result?.[0]?.attemptsTimes ?? 0
-					if (requestSendVerificationCodeResult.result.length === 0 || lastRequestDateTime + 55000 < nowTime) { // 前端 60 秒，后端 55 秒
+					if (requestSendVerificationCodeResult.result.length === 0 || lastRequestDateTime + 55000 < nowTime) { // Frontend 60 seconds, backend 55 seconds
 						const lastRequestDate = new Date(lastRequestDateTime)
-						if (requestSendVerificationCodeResult.result.length === 0 || todayStart > lastRequestDate || attemptsTimes < 5) { // ! 每天五次机会
-							const verificationCode = generateSecureVerificationNumberCode(6) // 生成六位随机数验证码
+						if (requestSendVerificationCodeResult.result.length === 0 || todayStart > lastRequestDate || attemptsTimes < 5) { // ! Five chances per day
+							const verificationCode = generateSecureVerificationNumberCode(6) // Generate six-digit random verification code
 							let newAttemptsTimes = attemptsTimes + 1
 							if (todayStart > lastRequestDate) {
 								newAttemptsTimes = 0
@@ -1391,7 +1391,7 @@ export const RequestSendVerificationCodeService = async (requestSendVerification
 							const requestSendVerificationCodeUpdate: UserVerificationCode = {
 								emailLowerCase,
 								verificationCode,
-								overtimeAt: nowTime + 1800000, // 当前时间加上 1800000 毫秒（30 分钟）作为新的过期时间
+								overtimeAt: nowTime + 1800000, // Current time plus 1800000 milliseconds (30 minutes) as new expiration time
 								attemptsTimes: newAttemptsTimes,
 								lastRequestDateTime: nowTime,
 								editDateTime: nowTime,
@@ -1408,90 +1408,90 @@ export const RequestSendVerificationCodeService = async (requestSendVerification
 									if (sendMailResult.success) {
 										await session.commitTransaction()
 										session.endSession()
-										return { success: true, isTimeout: false, message: '注册验证码已发送至你注册时使用的邮箱，请注意查收，如未收到，请检查垃圾箱或联系 KIRAKIRA 客服。' }
+										return { success: true, isTimeout: false, message: 'Verification code has been sent to the email you used for registration; please check your inbox. If you haven\'t received it, please check your spam folder or contact KIRAKIRA customer support.' }
 									} else {
 										if (session.inTransaction()) {
 											await session.abortTransaction()
 										}
 										session.endSession()
-										console.error('ERROR', '请求发送注册验证码失败，邮件发送失败')
-										return { success: false, isTimeout: true, message: '请求发送注册验证码失败，邮件发送失败' }
+										console.error('ERROR', 'Failed to send verification code: email sending failed')
+										return { success: false, isTimeout: true, message: 'Failed to send verification code: email sending failed' }
 									}
 								} catch (error) {
 									if (session.inTransaction()) {
 										await session.abortTransaction()
 									}
 									session.endSession()
-									console.error('ERROR', '请求发送注册验证码失败，邮件发送时出错', error)
-									return { success: false, isTimeout: true, message: '请求发送注册验证码失败，邮件发送时出错' }
+									console.error('ERROR', 'Failed to send verification code: error when sending email:', error)
+									return { success: false, isTimeout: true, message: 'Failed to send verification code: error when sending email' }
 								}
 							} else {
 								if (session.inTransaction()) {
 									await session.abortTransaction()
 								}
 								session.endSession()
-								console.error('ERROR', '请求发送注册验证码失败，更新或新增用户验证码失败')
-								return { success: false, isTimeout: false, message: '请求发送注册验证码失败，更新或新增用户验证码失败' }
+								console.error('ERROR', 'Failed to send verification code: failed to update or add user verification code')
+								return { success: false, isTimeout: false, message: 'Failed to send verification code: failed to update or add user verification code' }
 							}
 						} else {
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							console.warn('WARN', 'WARNING', '请求发送注册验证码失败，已达本日重复次数上限，请稍后再试')
-							return { success: true, isTimeout: true, message: '请求发送注册验证码失败，已达本日重复次数上限，请稍后再试' }
+							console.warn('WARN', 'WARNING', 'Failed to send verification code: exceeded daily repetition limit, please try again later')
+							return { success: true, isTimeout: true, message: 'Failed to send verification code: exceeded daily repetition limit, please try again later' }
 						}
 					} else {
 						if (session.inTransaction()) {
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.warn('WARN', 'WARNING', '请求发送注册验证码失败，未超过邮件超时时间，请稍后再试')
-						return { success: true, isTimeout: true, message: '请求发送注册验证码失败，未超过邮件超时时间，请稍后再试' }
+						console.warn('WARN', 'WARNING', 'Failed to send verification code: not exceeded email timeout, please try again later')
+						return { success: true, isTimeout: true, message: 'Failed to send verification code: not exceeded email timeout, please try again later' }
 					}
 				} else {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '请求发送注册验证码失败，获取验证码失败')
-					return { success: false, isTimeout: false, message: '请求发注册送验证码失败，获取验证码失败' }
+					console.error('ERROR', 'Failed to send verification code: failed to get verification code')
+					return { success: false, isTimeout: false, message: 'Failed to send verification code: failed to get verification code' }
 				}
 			} catch (error) {
 				if (session.inTransaction()) {
 					await session.abortTransaction()
 				}
 				session.endSession()
-				console.error('ERROR', '请求发送注册验证码失败，检查超时时间时出错', error)
-				return { success: false, isTimeout: false, message: '请求发送注册验证码失败，检查超时时间时出错' }
+				console.error('ERROR', 'Failed to send verification code: error when checking email timeout:', error)
+				return { success: false, isTimeout: false, message: 'Failed to send verification code: error when checking email timeout' }
 			}
 		} else {
-			console.error('ERROR', '请求发送注册验证码失败，参数不合法')
-			return { success: false, isTimeout: false, message: '请求发送注册验证码失败，参数不合法' }
+			console.error('ERROR', 'Failed to send verification code: invalid parameters')
+			return { success: false, isTimeout: false, message: 'Failed to send verification code: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '请求发送注册验证码失败，未知错误', error)
-		return { success: false, isTimeout: false, message: '请求发送注册验证码失败，未知错误' }
+		console.error('ERROR', 'Failed to send verification code: unknown error', error)
+		return { success: false, isTimeout: false, message: 'Failed to send verification code: unknown error' }
 	}
 }
 
 /**
- * 生成邀请码
- * @param uid 申请生成邀请码的用户
- * @param token 申请生成邀请码的用户 token
- * @returns 生成的邀请码
+ * Generate invitation code
+ * @param uid User requesting invitation code
+ * @param token User token for generating invitation code
+ * @returns Generated invitation code
  */
 export const createInvitationCodeService = async (uid: number, token: string): Promise<CreateInvitationCodeResponseDto> => {
 	try {
 		if (await checkUserToken(uid, token)) {
-			const UUID = await getUserUuid(uid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+			const UUID = await getUserUuid(uid) // DELETE ME This is a temporary workaround; UUID should be stored in cookies
 			if (!UUID) {
-				console.error('ERROR', '生成邀请码失败，UUID 不存在', { uid })
-				return { success: false, isCoolingDown: false, message: '生成邀请码失败，UUID 不存在' }
+				console.error('ERROR', 'Failed to generate invitation code: UUID does not exist', { uid })
+				return { success: false, isCoolingDown: false, message: 'Failed to generate invitation code: UUID does not exist' }
 			}
 
 			const nowTime = new Date().getTime()
-			const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000 // 将七天的时间转换为毫秒
+			const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000 // Convert seven days to milliseconds
 			const { collectionName, schemaInstance } = UserInvitationCodeSchema
 			type UserInvitationCode = InferSchemaType<typeof schemaInstance>
 			const userInvitationCodeWhere: QueryType<UserInvitationCode> = {
@@ -1506,7 +1506,7 @@ export const createInvitationCodeService = async (uid: number, token: string): P
 			try {
 				const userInvitationCodeSelectResult = await selectDataFromMongoDB<UserInvitationCode>(userInvitationCodeWhere, userInvitationCodeSelect, schemaInstance, collectionName)
 
-				// 检查用户上一次创建时间是否在七天内
+				// Check if user's last creation time is within seven days
 				try {
 					const getSelfUserInfoRequest: GetSelfUserInfoRequestDto = {
 						uid,
@@ -1514,19 +1514,19 @@ export const createInvitationCodeService = async (uid: number, token: string): P
 					}
 					const selfUserInfo = await getSelfUserInfoService(getSelfUserInfoRequest)
 					if (!selfUserInfo.success || selfUserInfo.result.userCreateDateTime > nowTime - sevenDaysInMillis) {
-						console.warn('WARN', 'WARNING', '生成邀请码失败，未超出邀请码生成期限，正在冷却中（第一次）', { uid })
-						return { success: true, isCoolingDown: true, message: '生成邀请码失败，未超出邀请码生成期限，正在冷却中（第一次）' }
+						console.warn('WARN', 'WARNING', 'Failed to generate invitation code: not expired invitation code generation period, cooling down (first attempt)', { uid })
+						return { success: true, isCoolingDown: true, message: 'Failed to generate invitation code: not expired invitation code generation period, cooling down (first attempt)' }
 					}
 				} catch (error) {
-					console.warn('WARN', 'WARNING', '生成邀请码时出错，查询用户信息出错', { error, uid })
-					return { success: false, isCoolingDown: false, message: '生成邀请码时出错，查询用户信息出错' }
+					console.warn('WARN', 'WARNING', 'Failed to generate invitation code: error when querying user information:', error, { uid })
+					return { success: false, isCoolingDown: false, message: 'Failed to generate invitation code: error when querying user information' }
 				}
 
-				if (userInvitationCodeSelectResult.success && userInvitationCodeSelectResult.result?.length === 0) { // 没有找到一天内的邀请码，则可以生成邀请码。
+				if (userInvitationCodeSelectResult.success && userInvitationCodeSelectResult.result?.length === 0) { // If no invitation code was found for the day, an invitation code can be generated.
 					try {
 						const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 						let finalInvitationCode = ''
-						while (true) { // 不断循环生成邀请码，直到生成一个不重复的邀请码
+						while (true) { // Continuously generate invitation codes until a unique one is generated
 							const invitationCodePart1 = generateSecureVerificationStringCode(4, charset)
 							const invitationCodePart2 = generateSecureVerificationStringCode(4, charset)
 							const newInvitationCode = `KIRA-${invitationCodePart1}-${invitationCodePart2}`
@@ -1562,46 +1562,46 @@ export const createInvitationCodeService = async (uid: number, token: string): P
 							try {
 								const insertResult = await insertData2MongoDB(userInvitationCode, schemaInstance, collectionName)
 								if (insertResult.success) {
-									return { success: true, isCoolingDown: false, message: '生成邀请码成功', invitationCodeResult: userInvitationCode }
+									return { success: true, isCoolingDown: false, message: 'Invitation code generated successfully', invitationCodeResult: userInvitationCode }
 								} else {
-									console.error('ERROR', '生成邀请码失败，存储邀请码失败', { uid })
-									return { success: false, isCoolingDown: false, message: '生成邀请码失败，存储邀请码失败' }
+									console.error('ERROR', 'Failed to store invitation code:', { uid })
+									return { success: false, isCoolingDown: false, message: 'Failed to store invitation code' }
 								}
 							} catch (error) {
-								console.error('ERROR', '生成邀请码失败，存储邀请码时出错', error, { uid })
-								return { success: false, isCoolingDown: false, message: '生成邀请码失败，存储邀请码时出错' }
+								console.error('ERROR', 'Failed to store invitation code:', error, { uid })
+								return { success: false, isCoolingDown: false, message: 'Failed to store invitation code' }
 							}
 						} else {
-							console.error('ERROR', '生成邀请码失败，生成不重复的新邀请码失败', { uid })
-							return { success: false, isCoolingDown: false, message: '生成邀请码失败，生成不重复的新邀请码失败' }
+							console.error('ERROR', 'Failed to generate unique new invitation code:', { uid })
+							return { success: false, isCoolingDown: false, message: 'Failed to generate unique new invitation code' }
 						}
 					} catch (error) {
-						console.error('ERROR', '生成邀请码失败，生成不重复的新邀请码时出错', error, { uid })
-						return { success: false, isCoolingDown: false, message: '生成邀请码失败，生成不重复的新邀请码时出错' }
+						console.error('ERROR', 'Failed to generate unique new invitation code:', error, { uid })
+						return { success: false, isCoolingDown: false, message: 'Failed to generate unique new invitation code' }
 					}
 				} else {
-					console.warn('WARN', 'WARNING', '生成邀请码失败，未超出邀请码生成期限，正在冷却中', { uid })
-					return { success: true, isCoolingDown: true, message: '生成邀请码失败，未超出邀请码生成期限，正在冷却中' }
+					console.warn('WARN', 'WARNING', 'Failed to generate invitation code: not expired invitation code generation period, cooling down', { uid })
+					return { success: true, isCoolingDown: true, message: 'Failed to generate invitation code: not expired invitation code generation period, cooling down' }
 				}
 			} catch (error) {
-				console.error('ERROR', '生成邀请码失败，查询是否超出邀请码生成期限时出错', error, { uid })
-				return { success: false, isCoolingDown: true, message: '生成邀请码失败，查询是否超出邀请码生成期限出错' }
+				console.error('ERROR', 'Failed to check if invitation code generation period has expired:', error, { uid })
+				return { success: false, isCoolingDown: true, message: 'Failed to check if invitation code generation period has expired' }
 			}
 		} else {
-			console.error('ERROR', '生成邀请码失败，非法用户！', { uid })
-			return { success: false, isCoolingDown: false, message: '生成邀请码失败，非法用户！' }
+			console.error('ERROR', 'Failed to generate invitation code: unauthorized user!', { uid })
+			return { success: false, isCoolingDown: false, message: 'Failed to generate invitation code: unauthorized user!' }
 		}
 	} catch (error) {
-		console.error('ERROR', '生成邀请码失败，未知错误', error)
-		return { success: false, isCoolingDown: false, message: '生成邀请码失败，未知错误' }
+		console.error('ERROR', 'Failed to generate invitation code: unknown error', error)
+		return { success: false, isCoolingDown: false, message: 'Failed to generate invitation code: unknown error' }
 	}
 }
 
 /**
- * 获取自己的邀请码列表
- * @param uid 用户 UID
- * @param token 用户 token
- * @returns 获取自己的邀请码列表的请求结果
+ * Get list of own invitation codes
+ * @param uid User UID
+ * @param token User token
+ * @returns Result of getting list of own invitation codes request
  */
 export const getMyInvitationCodeService = async (uid: number, token: string): Promise<GetMyInvitationCodeResponseDto> => {
 	try {
@@ -1625,32 +1625,32 @@ export const getMyInvitationCodeService = async (uid: number, token: string): Pr
 				const myInvitationCodeResult = await selectDataFromMongoDB<UserInvitationCode>(myInvitationCodeWhere, myInvitationCodeSelect, schemaInstance, collectionName)
 				if (myInvitationCodeResult.success) {
 					if (myInvitationCodeResult.result?.length >= 0) {
-						return { success: true, message: '已成功获取邀请码列表', invitationCodeResult: myInvitationCodeResult.result }
+						return { success: true, message: 'Invitation code list retrieved successfully', invitationCodeResult: myInvitationCodeResult.result }
 					} else {
-						return { success: true, message: '自己的邀请码列表为空', invitationCodeResult: [] }
+						return { success: true, message: 'Own invitation code list is empty', invitationCodeResult: [] }
 					}
 				} else {
-					console.error('ERROR', '获取自己的邀请码失败，请求失败', { uid })
-					return { success: false, message: '获取自己的邀请码失败，请求失败！', invitationCodeResult: [] }
+					console.error('ERROR', 'Failed to retrieve own invitation codes:', { uid })
+					return { success: false, message: 'Failed to retrieve own invitation codes!', invitationCodeResult: [] }
 				}
 			} catch (error) {
-				console.error('ERROR', '获取自己的邀请码失败，请求时出错', { uid, error })
-				return { success: false, message: '获取自己的邀请码失败，请求时出错！', invitationCodeResult: [] }
+				console.error('ERROR', 'Failed to retrieve own invitation codes:', { uid, error })
+				return { success: false, message: 'Failed to retrieve own invitation codes!', invitationCodeResult: [] }
 			}
 		} else {
-			console.error('ERROR', '获取自己的邀请码失败，非法用户！', { uid })
-			return { success: false, message: '获取自己的邀请码失败，非法用户！', invitationCodeResult: [] }
+			console.error('ERROR', 'Failed to retrieve own invitation codes: unauthorized user!', { uid })
+			return { success: false, message: 'Failed to retrieve own invitation codes: unauthorized user!', invitationCodeResult: [] }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取自己的邀请码失败，未知错误', error)
-		return { success: false, message: '获取自己的邀请码失败，未知错误', invitationCodeResult: [] }
+		console.error('ERROR', 'Failed to retrieve own invitation codes: unknown error', error)
+		return { success: false, message: 'Failed to retrieve own invitation codes: unknown error', invitationCodeResult: [] }
 	}
 }
 
 /**
- * 使用邀请码注册
- * @param userInvitationCodeDto 使用邀请码注册的参数
- * @returns 使用邀请码注册的结果
+ * Register using invitation code
+ * @param userInvitationCodeDto Parameters for registering using invitation code
+ * @returns Result of registering using invitation code
  */
 const useInvitationCode = async (useInvitationCodeDto: UseInvitationCodeDto): Promise<UseInvitationCodeResultDto> => {
 	try {
@@ -1674,29 +1674,29 @@ const useInvitationCode = async (useInvitationCodeDto: UseInvitationCodeDto): Pr
 			try {
 				const updateResult = await findOneAndUpdateData4MongoDB(useInvitationCodeWhere, useInvitationCodeUpdate, schemaInstance, collectionName)
 				if (updateResult.success) {
-					return { success: true, message: '已使用邀请码注册' }
+					return { success: true, message: 'Invitation code used for registration' }
 				} else {
-					console.error('ERROR', '使用邀请码注册，使用邀请码失败')
-					return { success: false, message: '使用邀请码注册，使用邀请码失败' }
+					console.error('ERROR', 'Failed to use invitation code for registration: failed to update inviter')
+					return { success: false, message: 'Failed to use invitation code for registration: failed to update inviter' }
 				}
 			} catch (error) {
-				console.error('ERROR', '使用邀请码注册，使用邀请码时出错', error)
-				return { success: false, message: '使用邀请码注册，使用邀请码时出错' }
+				console.error('ERROR', 'Failed to use invitation code for registration: exception while updating inviter:', error)
+				return { success: false, message: 'Failed to use invitation code for registration: exception while updating inviter' }
 			}
 		} else {
-			console.error('ERROR', '使用邀请码注册，参数不合法')
-			return { success: false, message: '使用邀请码注册，参数不合法' }
+			console.error('ERROR', 'Failed to use invitation code for registration: invalid parameters')
+			return { success: false, message: 'Failed to use invitation code for registration: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '使用邀请码注册，未知错误', error)
-		return { success: false, message: '使用邀请码注册，未知错误' }
+		console.error('ERROR', 'Failed to use invitation code for registration: unknown error', error)
+		return { success: false, message: 'Failed to use invitation code for registration: unknown error' }
 	}
 }
 
 /**
- * 检查一个邀请码是否可用
- * @param checkInvitationCodeRequestDto 检查一个邀请码是否可用的请求载荷
- * @returns 检查一个邀请码是否可用的请求响应
+ * Check if an invitation code is available
+ * @param checkInvitationCodeRequestDto Request payload for checking if an invitation code is available
+ * @returns Response for checking if an invitation code is available request
  */
 export const checkInvitationCodeService = async (checkInvitationCodeRequestDto: CheckInvitationCodeRequestDto): Promise<CheckInvitationCodeResponseDto> => {
 	try {
@@ -1717,49 +1717,49 @@ export const checkInvitationCodeService = async (checkInvitationCodeRequestDto: 
 				const checkInvitationCodeResult = await selectDataFromMongoDB<UserInvitationCode>(checkInvitationCodeWhere, checkInvitationCodeSelect, schemaInstance, collectionName)
 				if (checkInvitationCodeResult.success) {
 					if (checkInvitationCodeResult.result?.length === 1) {
-						return { success: true, isAvailableInvitationCode: true, message: '邀请码检查通过' }
+						return { success: true, isAvailableInvitationCode: true, message: 'Invitation code check passed' }
 					} else {
-						return { success: true, isAvailableInvitationCode: false, message: '邀请码检查未通过' }
+						return { success: true, isAvailableInvitationCode: false, message: 'Invitation code check failed' }
 					}
 				} else {
-					console.error('ERROR', '检查邀请码可用性失败，请求失败')
-					return { success: false, isAvailableInvitationCode: false, message: '检查邀请码可用性失败，请求失败！' }
+					console.error('ERROR', 'Failed to check availability of invitation code: request failed')
+					return { success: false, isAvailableInvitationCode: false, message: 'Failed to check availability of invitation code: request failed!' }
 				}
 			} catch (error) {
-				console.error('ERROR', '检查邀请码可用性失败，请求时出错')
-				return { success: false, isAvailableInvitationCode: false, message: '检查邀请码可用性失败，请求时出错！' }
+				console.error('ERROR', 'Failed to check availability of invitation code: request error', error)
+				return { success: false, isAvailableInvitationCode: false, message: 'Failed to check availability of invitation code: request error!' }
 			}
 		} else {
-			console.error('ERROR', '检查邀请码可用性失败，参数不合法')
-			return { success: false, isAvailableInvitationCode: false, message: '检查邀请码可用性失败，参数不合法' }
+			console.error('ERROR', 'Failed to check availability of invitation code: invalid parameters')
+			return { success: false, isAvailableInvitationCode: false, message: 'Failed to check availability of invitation code: invalid parameters' }
 		}
 	} catch (error) {
-		console.error('ERROR', '检查邀请码可用性失败，未知错误', error)
-		return { success: false, isAvailableInvitationCode: false, message: '检查邀请码可用性失败，未知错误' }
+		console.error('ERROR', 'Failed to check availability of invitation code: unknown error', error)
+		return { success: false, isAvailableInvitationCode: false, message: 'Failed to check availability of invitation code: unknown error' }
 	}
 }
 
 /**
- * 管理员根据邀请码查询用户
- * @param invitationCode 邀请码
- * @param AdminUUID 管理员 UUID
- * @param AdminToken 管理员 token
+ * Admin query user by invitation code
+ * @param invitationCode Invitation code
+ * @param AdminUUID Admin UUID
+ * @param AdminToken Admin token
  */
 export const adminGetUserByInvitationCodeService = async (invitationCode: string, AdminUUID: string, AdminToken: string): Promise<AdminGetUserByInvitationCodeResponseDto> => {
 	try {
 		if (!invitationCode || !AdminUUID || !AdminToken) {
-			console.error('ERROR', '管理员以邀请码查询用户失败，参数不合法')
-			return { success: false, message: '管理员以邀请码查询用户失败，参数不合法', userInfoResult: {} }
+			console.error('ERROR', 'Failed to query user by invitation code: invalid parameters')
+			return { success: false, message: 'Failed to query user by invitation code: invalid parameters', userInfoResult: {} }
 		}
 		if (!(await checkUserTokenByUuidService(AdminUUID, AdminToken)).success) {
-			console.error('ERROR', '管理员以邀请码查询用户失败，管理员验证失败')
-			return { success: false, message: '管理员以邀请码查询用户失败，管理员验证失败', userInfoResult: {} }
+			console.error('ERROR', 'Failed to query user by invitation code: admin verification failed')
+			return { success: false, message: 'Failed to query user by invitation code: admin verification failed', userInfoResult: {} }
 		}
 
 		const checkInvitationCode = await checkInvitationCodeService({ invitationCode })
 		if (!checkInvitationCode.success || !!checkInvitationCode.isAvailableInvitationCode) {
-			console.error('ERROR', '管理员以邀请码查询用户失败，邀请码不可用', { invitationCode })
-			return { success: false, message: '管理员以邀请码查询用户失败，邀请码不可用', userInfoResult: {} }
+			console.error('ERROR', 'Failed to query user by invitation code: invitation code not available', { invitationCode })
+			return { success: false, message: 'Failed to query user by invitation code: invitation code not available', userInfoResult: {} }
 		}
 
 		const { collectionName, schemaInstance } = UserInvitationCodeSchema
@@ -1775,27 +1775,27 @@ export const adminGetUserByInvitationCodeService = async (invitationCode: string
 		const userInvitationCodeResult = await selectDataFromMongoDB<UserInvitationCode>(userInvitationCodeWhere, userInvitationCodeSelect, schemaInstance, collectionName)
 		const userInvitationCodeData = userInvitationCodeResult.result?.[0]
 		if (!userInvitationCodeResult.success) {
-			console.error('ERROR', '管理员以邀请码查询用户失败，查询失败')
-			return { success: false, message: '管理员以邀请码查询用户失败，查询失败', userInfoResult: {} }
+			console.error('ERROR', 'Failed to query user by invitation code: query failed')
+			return { success: false, message: 'Failed to query user by invitation code: query failed', userInfoResult: {} }
 		}
 		if (!userInvitationCodeData || !userInvitationCodeData.assignee || !userInvitationCodeData.assigneeUUID) {
-			console.error('ERROR', '管理员以邀请码查询用户失败，未找到用户信息', { invitationCode })
-			return { success: false, message: '管理员以邀请码查询用户失败，未找到用户信息', userInfoResult: {} }
+			console.error('ERROR', 'Failed to query user by invitation code: user information not found', { invitationCode })
+			return { success: false, message: 'Failed to query user by invitation code: user information not found', userInfoResult: {} }
 		}
-		return { success: true, message: '管理员以邀请码查询用户成功', userInfoResult: { uid: userInvitationCodeData?.assignee, uuid: userInvitationCodeData?.assigneeUUID} }
+		return { success: true, message: 'Admin successfully queried user by invitation code', userInfoResult: { uid: userInvitationCodeData?.assignee, uuid: userInvitationCodeData?.assigneeUUID} }
 
 	} catch (error) {
-		console.error('ERROR', '管理员以邀请码查询用户失败，未知错误', error)
-		return { success: false, message: '管理员以邀请码查询用户失败，未知错误', userInfoResult: {} }
+		console.error('ERROR', 'Failed to query user by invitation code: unknown error', error)
+		return { success: false, message: 'Failed to query user by invitation code: unknown error', userInfoResult: {} }
 	}
 }
 
 /**
- * 请求发送修改邮箱的邮箱验证码
- * @param requestSendChangeEmailVerificationCodeRequest 请求发送修改邮箱的邮箱验证码的请求载荷
- * @param uid 用户 UID
- * @param token 用户 token
- * @returns 请求发送修改邮箱的邮箱验证码的请求响应
+ * Request to send verification code for changing email
+ * @param requestSendChangeEmailVerificationCodeRequest Request payload for sending verification code for changing email
+ * @param uid User UID
+ * @param token User token
+ * @returns Response for sending verification code for changing email request
  */
 export const requestSendChangeEmailVerificationCodeService = async (requestSendChangeEmailVerificationCodeRequest: RequestSendChangeEmailVerificationCodeRequestDto, uid: number, token: string): Promise<RequestSendChangeEmailVerificationCodeResponseDto> => {
 	try {
@@ -1815,12 +1815,12 @@ export const requestSendChangeEmailVerificationCodeService = async (requestSendC
 						}
 
 						const requestSendVerificationCodeSelect: SelectType<UserVerificationCode> = {
-							emailLowerCase: 1, // 用户邮箱
+							emailLowerCase: 1, // user email
 							attemptsTimes: 1,
-							lastRequestDateTime: 1, // 用户上一次请求验证码的时间，用于防止滥用
+							lastRequestDateTime: 1, // Time of last request for verification code, used to prevent abuse
 						}
 
-						// 启动事务
+						// Start transaction
 						const session = await mongoose.startSession()
 						session.startTransaction()
 
@@ -1829,10 +1829,10 @@ export const requestSendChangeEmailVerificationCodeService = async (requestSendC
 							if (requestSendVerificationCodeResult.success) {
 								const lastRequestDateTime = requestSendVerificationCodeResult.result?.[0]?.lastRequestDateTime ?? 0
 								const attemptsTimes = requestSendVerificationCodeResult.result?.[0]?.attemptsTimes ?? 0
-								if (requestSendVerificationCodeResult.result.length === 0 || lastRequestDateTime + 55000 < nowTime) { // 前端 60 秒，后端 55 秒
+								if (requestSendVerificationCodeResult.result.length === 0 || lastRequestDateTime + 55000 < nowTime) { // Frontend 60 seconds, backend 55 seconds
 									const lastRequestDate = new Date(lastRequestDateTime)
-									if (requestSendVerificationCodeResult.result.length === 0 || todayStart > lastRequestDate || attemptsTimes < 10) { // ! 每天十次机会
-										const verificationCode = generateSecureVerificationNumberCode(6) // 生成六位随机数验证码
+									if (requestSendVerificationCodeResult.result.length === 0 || todayStart > lastRequestDate || attemptsTimes < 10) { // ! Ten chances per day
+										const verificationCode = generateSecureVerificationNumberCode(6) // Generate six-digit random verification code
 										let newAttemptsTimes = attemptsTimes + 1
 										if (todayStart > lastRequestDate) {
 											newAttemptsTimes = 0
@@ -1841,7 +1841,7 @@ export const requestSendChangeEmailVerificationCodeService = async (requestSendC
 										const requestSendVerificationCodeUpdate: UserVerificationCode = {
 											emailLowerCase,
 											verificationCode,
-											overtimeAt: nowTime + 1800000, // 当前时间加上 1800000 毫秒（30 分钟）作为新的过期时间
+											overtimeAt: nowTime + 1800000, // Current time plus 1800000 milliseconds (30 minutes) as new expiration time
 											attemptsTimes: newAttemptsTimes,
 											lastRequestDateTime: nowTime,
 											editDateTime: nowTime,
@@ -1858,99 +1858,99 @@ export const requestSendChangeEmailVerificationCodeService = async (requestSendC
 												if (sendMailResult.success) {
 													await session.commitTransaction()
 													session.endSession()
-													return { success: true, isCoolingDown: false, message: '修改邮箱的验证码已发送至你注册时使用的邮箱，请注意查收，如未收到，请检查垃圾箱或联系 KIRAKIRA 客服。' }
+													return { success: true, isCoolingDown: false, message: 'Verification code for changing email has been sent to the email you used for registration; please check your inbox. If you haven\'t received it, please check your spam folder or contact KIRAKIRA customer support.' }
 												} else {
 													if (session.inTransaction()) {
 														await session.abortTransaction()
 													}
 													session.endSession()
-													console.error('ERROR', '请求发送修改邮箱的验证码失败，邮件发送失败')
-													return { success: false, isCoolingDown: true, message: '请求发送修改邮箱的验证码失败，邮件发送失败' }
+													console.error('ERROR', 'Failed to send verification code for changing email: email sending failed')
+													return { success: false, isCoolingDown: true, message: 'Failed to send verification code for changing email: email sending failed' }
 												}
 											} catch (error) {
 												if (session.inTransaction()) {
 													await session.abortTransaction()
 												}
 												session.endSession()
-												console.error('ERROR', '请求发送修改邮箱的验证码失败，邮件发送时出错', error)
-												return { success: false, isCoolingDown: true, message: '请求发送修改邮箱的验证码失败，邮件发送时出错' }
+												console.error('ERROR', 'Failed to send verification code for changing email: error when sending email:', error)
+												return { success: false, isCoolingDown: true, message: 'Failed to send verification code for changing email: error when sending email' }
 											}
 										} else {
 											if (session.inTransaction()) {
 												await session.abortTransaction()
 											}
 											session.endSession()
-											console.error('ERROR', '请求发送修改邮箱的验证码失败，更新或新增用户验证码失败')
-											return { success: false, isCoolingDown: false, message: '请求发送修改邮箱的验证码失败，更新或新增用户验证码失败' }
+											console.error('ERROR', 'Failed to send verification code for changing email: failed to update or add user verification code')
+											return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing email: failed to update or add user verification code' }
 										}
 									} else {
 										if (session.inTransaction()) {
 											await session.abortTransaction()
 										}
 										session.endSession()
-										console.warn('WARN', 'WARNING', '请求发送修改邮箱的验证码失败，已达本日重试次数上限，请稍后再试')
-										return { success: true, isCoolingDown: true, message: '请求发送修改邮箱的验证码失败，已达本日重试次数上限，请稍后再试' }
+										console.warn('WARN', 'WARNING', 'Failed to send verification code for changing email: exceeded daily retry limit, please try again later')
+										return { success: true, isCoolingDown: true, message: 'Failed to send verification code for changing email: exceeded daily retry limit, please try again later' }
 									}
 								} else {
 									if (session.inTransaction()) {
 										await session.abortTransaction()
 									}
 									session.endSession()
-									console.warn('WARN', 'WARNING', '请求发送修改邮箱的验证码失败，未超过邮件超时时间，请稍后再试')
-									return { success: true, isCoolingDown: true, message: '请求发送修改邮箱的验证码失败，未超过邮件超时时间，请稍后再试' }
+									console.warn('WARN', 'WARNING', 'Failed to send verification code for changing email: not exceeded email timeout, please try again later')
+									return { success: true, isCoolingDown: true, message: 'Failed to send verification code for changing email: not exceeded email timeout, please try again later' }
 								}
 							} else {
 								if (session.inTransaction()) {
 									await session.abortTransaction()
 								}
 								session.endSession()
-								console.error('ERROR', '请求发送修改邮箱的验证码失败，获取验证码失败')
-								return { success: false, isCoolingDown: false, message: '请求发送修改邮箱的验证码失败，获取验证码失败' }
+								console.error('ERROR', 'Failed to send verification code for changing email: failed to get verification code')
+								return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing email: failed to get verification code' }
 							}
 						} catch (error) {
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							console.error('ERROR', '请求发送修改邮箱的验证码失败，检查超时时间时出错', error)
-							return { success: false, isCoolingDown: false, message: '请求发送修改邮箱的验证码失败，检查超时时间时出错' }
+							console.error('ERROR', 'Failed to send verification code for changing email: error when checking email timeout:', error)
+							return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing email: error when checking email timeout' }
 						}
 					} else {
-						console.error('ERROR', '发送更新邮箱的验证码失败，获取用户旧邮箱失败', { uid })
-						return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，获取用户旧邮箱失败' }
+						console.error('ERROR', 'Failed to retrieve old email for changing email:', { uid })
+						return { success: false, isCoolingDown: false, message: 'Failed to retrieve old email for changing email' }
 					}
 				} catch (error) {
-					console.error('ERROR', '发送更新邮箱的验证码失败，获取用户旧邮箱时出错', { error, uid })
-					return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，获取用户旧邮箱时出错' }
+					console.error('ERROR', 'Failed to retrieve old email for changing email:', error, { uid })
+					return { success: false, isCoolingDown: false, message: 'Failed to retrieve old email for changing email' }
 				}
 			} else {
-				console.error('ERROR', '发送更新邮箱的验证码失败，参数不合法！', { uid })
-				return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，参数不合法！' }
+				console.error('ERROR', 'Failed to send verification code for changing email: invalid parameters!', { uid })
+				return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing email: invalid parameters!' }
 			}
 		} else {
-			console.error('ERROR', '发送更新邮箱的验证码失败，非法用户！', { uid })
-			return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，非法用户！' }
+			console.error('ERROR', 'Failed to send verification code for changing email: unauthorized user!', { uid })
+			return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing email: unauthorized user!' }
 		}
 	} catch (error) {
-		console.error('ERROR', '发送更新邮箱的验证码失败，未知错误', error)
-		return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，未知错误' }
+		console.error('ERROR', 'Failed to send verification code for changing email: unknown error', error)
+		return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing email: unknown error' }
 	}
 }
 
 /**
- * 请求发送修改密码的邮箱验证码
- * @param requestSendChangePasswordVerificationCodeRequest 请求发送修改密码的邮箱验证码的请求载荷
- * @param uid 用户 UID
- * @param token 用户 token
- * @returns 请求发送修改密码的邮箱验证码的请求响应
+ * Request to send verification code for changing password
+ * @param requestSendChangePasswordVerificationCodeRequest Request payload for sending verification code for changing password
+ * @param uid User UID
+ * @param token User token
+ * @returns Response for sending verification code for changing password request
  */
 export const requestSendChangePasswordVerificationCodeService = async (requestSendChangePasswordVerificationCodeRequest: RequestSendChangePasswordVerificationCodeRequestDto, uid: number, token: string): Promise<RequestSendChangePasswordVerificationCodeResponseDto> => {
 	try {
 		if (await checkUserToken(uid, token)) {
-			const UUID = await getUserUuid(uid) // DELETE ME 这是一个临时解决方法，Cookie 中应当存储 UUID
+			const UUID = await getUserUuid(uid) // DELETE ME This is a temporary workaround; UUID should be stored in cookies
 			if (!UUID) {
-				console.error('ERROR', '请求发送修改密码的邮箱验证码失败，UUID 不存在', { uid })
-				return { success: false, isCoolingDown: false, message: '请求发送修改密码的邮箱验证码失败，UUID 不存在' }
+				console.error('ERROR', 'Failed to request verification code for changing password: UUID does not exist', { uid })
+				return { success: false, isCoolingDown: false, message: 'Failed to request verification code for changing password: UUID does not exist' }
 			}
 
 			if (checkRequestSendChangePasswordVerificationCodeRequest(requestSendChangePasswordVerificationCodeRequest)) {
@@ -1974,12 +1974,12 @@ export const requestSendChangePasswordVerificationCodeService = async (requestSe
 						}
 
 						const requestSendVerificationCodeSelect: SelectType<UserChangePasswordVerificationCode> = {
-							emailLowerCase: 1, // 用户邮箱
+							emailLowerCase: 1, // User email
 							attemptsTimes: 1,
-							lastRequestDateTime: 1, // 用户上一次请求验证码的时间，用于防止滥用
+							lastRequestDateTime: 1, // Time of last request for verification code, used to prevent abuse
 						}
 
-						// 启动事务
+						// Start transaction
 						const session = await mongoose.startSession()
 						session.startTransaction()
 
@@ -1988,10 +1988,10 @@ export const requestSendChangePasswordVerificationCodeService = async (requestSe
 							if (requestSendVerificationCodeResult.success) {
 								const lastRequestDateTime = requestSendVerificationCodeResult.result?.[0]?.lastRequestDateTime ?? 0
 								const attemptsTimes = requestSendVerificationCodeResult.result?.[0]?.attemptsTimes ?? 0
-								if (requestSendVerificationCodeResult.result.length === 0 || lastRequestDateTime + 55000 < nowTime) { // 前端 60 秒，后端 55 秒
+								if (requestSendVerificationCodeResult.result.length === 0 || lastRequestDateTime + 55000 < nowTime) { // Frontend 60 seconds, backend 55 seconds
 									const lastRequestDate = new Date(lastRequestDateTime)
-									if (requestSendVerificationCodeResult.result.length === 0 || todayStart > lastRequestDate || attemptsTimes < 3) { // ! 每天三次机会
-										const verificationCode = generateSecureVerificationNumberCode(6) // 生成六位随机数验证码
+									if (requestSendVerificationCodeResult.result.length === 0 || todayStart > lastRequestDate || attemptsTimes < 3) { // ! Three chances per day
+										const verificationCode = generateSecureVerificationNumberCode(6) // Generate six-digit random verification code
 										let newAttemptsTimes = attemptsTimes + 1
 										if (todayStart > lastRequestDate) {
 											newAttemptsTimes = 0
@@ -2002,7 +2002,7 @@ export const requestSendChangePasswordVerificationCodeService = async (requestSe
 											uid,
 											emailLowerCase,
 											verificationCode,
-											overtimeAt: nowTime + 1800000, // 当前时间加上 1800000 毫秒（30 分钟）作为新的过期时间
+											overtimeAt: nowTime + 1800000, // Current time plus 1800000 milliseconds (30 minutes) as new expiration time
 											attemptsTimes: newAttemptsTimes,
 											lastRequestDateTime: nowTime,
 											editDateTime: nowTime,
@@ -2019,91 +2019,91 @@ export const requestSendChangePasswordVerificationCodeService = async (requestSe
 												if (sendMailResult.success) {
 													await session.commitTransaction()
 													session.endSession()
-													return { success: true, isCoolingDown: false, message: '修改密码的验证码已发送至你注册时使用的邮箱，请注意查收，如未收到，请检查垃圾箱或联系 KIRAKIRA 客服。' }
+													return { success: true, isCoolingDown: false, message: 'Verification code for changing password has been sent to the email you used for registration; please check your inbox. If you haven\'t received it, please check your spam folder or contact KIRAKIRA customer support.' }
 												} else {
 													if (session.inTransaction()) {
 														await session.abortTransaction()
 													}
 													session.endSession()
-													console.error('ERROR', '请求发送修改密码的验证码失败，邮件发送失败')
-													return { success: false, isCoolingDown: true, message: '请求发送修改密码的验证码失败，邮件发送失败' }
+													console.error('ERROR', 'Failed to send verification code for changing password: email sending failed')
+													return { success: false, isCoolingDown: true, message: 'Failed to send verification code for changing password: email sending failed' }
 												}
 											} catch (error) {
 												if (session.inTransaction()) {
 													await session.abortTransaction()
 												}
 												session.endSession()
-												console.error('ERROR', '请求发送修改密码的验证码失败，邮件发送时出错', error)
-												return { success: false, isCoolingDown: true, message: '请求发送修改密码的验证码失败，邮件发送时出错' }
+												console.error('ERROR', 'Failed to send verification code for changing password: error when sending email:', error)
+												return { success: false, isCoolingDown: true, message: 'Failed to send verification code for changing password: error when sending email' }
 											}
 										} else {
 											if (session.inTransaction()) {
 												await session.abortTransaction()
 											}
 											session.endSession()
-											console.error('ERROR', '请求发送修改密码的验证码失败，更新或新增用户验证码失败')
-											return { success: false, isCoolingDown: false, message: '请求发送修改密码的验证码失败，更新或新增用户验证码失败' }
+											console.error('ERROR', 'Failed to send verification code for changing password: failed to update or add user verification code')
+											return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing password: failed to update or add user verification code' }
 										}
 									} else {
 										if (session.inTransaction()) {
 											await session.abortTransaction()
 										}
 										session.endSession()
-										console.warn('WARN', 'WARNING', '请求发送修改密码的验证码失败，已达本日重试次数上限，请稍后再试')
-										return { success: true, isCoolingDown: true, message: '请求发送修改密码的验证码失败，已达本日重试次数上限，请稍后再试' }
+										console.warn('WARN', 'WARNING', 'Failed to send verification code for changing password: exceeded daily retry limit, please try again later')
+										return { success: true, isCoolingDown: true, message: 'Failed to send verification code for changing password: exceeded daily retry limit, please try again later' }
 									}
 								} else {
 									if (session.inTransaction()) {
 										await session.abortTransaction()
 									}
 									session.endSession()
-									console.warn('WARN', 'WARNING', '请求发送修改密码的验证码失败，未超过邮件超时时间，请稍后再试')
-									return { success: true, isCoolingDown: true, message: '请求发送修改密码的验证码失败，未超过邮件超时时间，请稍后再试' }
+									console.warn('WARN', 'WARNING', 'Failed to send verification code for changing password: not exceeded email timeout, please try again later')
+									return { success: true, isCoolingDown: true, message: 'Failed to send verification code for changing password: not exceeded email timeout, please try again later' }
 								}
 							} else {
 								if (session.inTransaction()) {
 									await session.abortTransaction()
 								}
 								session.endSession()
-								console.error('ERROR', '请求发送修改密码的验证码失败，获取验证码失败')
-								return { success: false, isCoolingDown: false, message: '请求发送修改密码的验证码失败，获取验证码失败' }
+								console.error('ERROR', 'Failed to send verification code for changing password: failed to get verification code')
+								return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing password: failed to get verification code' }
 							}
 						} catch (error) {
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							console.error('ERROR', '请求发送修改邮箱的验证码失败，检查超时时间时出错', error)
-							return { success: false, isCoolingDown: false, message: '请求发送修改邮箱的验证码失败，检查超时时间时出错' }
+							console.error('ERROR', 'Failed to send verification code for changing password: error when checking email timeout:', error)
+							return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing password: error when checking email timeout' }
 						}
 					} else {
-						console.error('ERROR', '发送更新邮箱的验证码失败，获取用户旧邮箱失败', { uid })
-						return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，获取用户旧邮箱失败' }
+						console.error('ERROR', 'Failed to retrieve old email for changing password:', { uid })
+						return { success: false, isCoolingDown: false, message: 'Failed to retrieve old email for changing password' }
 					}
 				} catch (error) {
-					console.error('ERROR', '发送更新邮箱的验证码失败，获取用户旧邮箱时出错', { error, uid })
-					return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，获取用户旧邮箱时出错' }
+					console.error('ERROR', 'Failed to retrieve old email for changing password:', error, { uid })
+					return { success: false, isCoolingDown: false, message: 'Failed to retrieve old email for changing password' }
 				}
 			} else {
-				console.error('ERROR', '发送更新邮箱的验证码失败，参数不合法！', { uid })
-				return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，参数不合法！' }
+				console.error('ERROR', 'Failed to send verification code for changing password: invalid parameters!', { uid })
+				return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing password: invalid parameters!' }
 			}
 		} else {
-			console.error('ERROR', '发送更新邮箱的验证码失败，非法用户！', { uid })
-			return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，非法用户！' }
+			console.error('ERROR', 'Failed to send verification code for changing password: unauthorized user!', { uid })
+			return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing password: unauthorized user!' }
 		}
 	} catch (error) {
-		console.error('ERROR', '发送更新邮箱的验证码失败，未知错误', error)
-		return { success: false, isCoolingDown: false, message: '发送更新邮箱的验证码失败，未知错误' }
+		console.error('ERROR', 'Failed to send verification code for changing password: unknown error', error)
+		return { success: false, isCoolingDown: false, message: 'Failed to send verification code for changing password: unknown error' }
 	}
 }
 
 /**
- * 更新密码
- * @param updateUserPasswordRequest 更新密码的请求载荷
- * @param uid 用户 UID
- * @param token 用户 token
- * @returns 更新密码的请求响应
+ * Update password
+ * @param updateUserPasswordRequest Request payload for updating password
+ * @param uid User UID
+ * @param token User token
+ * @returns Response for updating password request
  */
 export const changePasswordService = async (updateUserPasswordRequest: UpdateUserPasswordRequestDto, uid: number, token: string): Promise<UpdateUserPasswordResponseDto> => {
 	try {
@@ -2121,10 +2121,10 @@ export const changePasswordService = async (updateUserPasswordRequest: UpdateUse
 					overtimeAt: { $gte: now },
 				}
 				const userChangePasswordVerificationCodeSelect: SelectType<UserChangePasswordVerificationCode> = {
-					emailLowerCase: 1, // 用户邮箱
+					emailLowerCase: 1, // User email
 				}
 
-				// 启动事务
+				// Start transaction
 				const session = await mongoose.startSession()
 				session.startTransaction()
 
@@ -2135,16 +2135,16 @@ export const changePasswordService = async (updateUserPasswordRequest: UpdateUse
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '修改密码时出错，验证失败')
-						return { success: false, message: '修改密码时出错，验证失败' }
+						console.error('ERROR', 'Failed to update password: verification failed')
+						return { success: false, message: 'Failed to update password: verification failed' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '修改密码时出错，请求验证失败')
-					return { success: false, message: '修改密码时出错，请求验证失败' }
+					console.error('ERROR', 'Failed to update password: request verification failed')
+					return { success: false, message: 'Failed to update password: request verification failed' }
 				}
 
 				const { collectionName, schemaInstance } = UserAuthSchema
@@ -2174,80 +2174,80 @@ export const changePasswordService = async (updateUserPasswordRequest: UpdateUse
 									if (updateResult.success) {
 										await session.commitTransaction()
 										session.endSession()
-										return { success: true, message: '密码已更新！' }
+										return { success: true, message: 'Password updated!' }
 									} else {
 										if (session.inTransaction()) {
 											await session.abortTransaction()
 										}
 										session.endSession()
-										console.error('ERROR', '修改密码失败，更新密码失败', { uid })
-										return { success: false, message: '修改密码时出错，更新密码失败' }
+										console.error('ERROR', 'Failed to update password: failed to update password', { uid })
+										return { success: false, message: 'Failed to update password: failed to update password' }
 									}
 								} catch (error) {
 									if (session.inTransaction()) {
 										await session.abortTransaction()
 									}
 									session.endSession()
-									console.error('ERROR', '修改密码时出错，更新密码时出错', { uid, error })
-									return { success: false, message: '修改密码时出错，更新密码时出错' }
+									console.error('ERROR', 'Failed to update password: error when updating password:', { uid, error })
+									return { success: false, message: 'Failed to update password: error when updating password' }
 								}
 							} else {
 								if (session.inTransaction()) {
 									await session.abortTransaction()
 								}
 								session.endSession()
-								console.error('ERROR', '修改密码失败，未能散列新密码', { uid })
-								return { success: false, message: '修改密码失败，未能散列新密码' }
+								console.error('ERROR', 'Failed to update password: failed to hash new password', { uid })
+								return { success: false, message: 'Failed to update password: failed to hash new password' }
 							}
 						} else {
 							if (session.inTransaction()) {
 								await session.abortTransaction()
 							}
 							session.endSession()
-							console.error('ERROR', '修改密码失败，密码校验未通过', { uid })
-							return { success: false, message: '修改密码失败，密码校验未通过' }
+							console.error('ERROR', 'Failed to update password: password verification failed', { uid })
+							return { success: false, message: 'Failed to update password: password verification failed' }
 						}
 					} else {
 						if (session.inTransaction()) {
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '修改密码失败，密码校验结果为空或不为一！', { uid })
-						return { success: false, message: '修改密码失败，密码校验结果不正确' }
+						console.error('ERROR', 'Failed to update password: password verification result is empty or not 1!', { uid })
+						return { success: false, message: 'Failed to update password: password verification result is incorrect' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '修改密码时出错，密码校验时出错！', { uid, error })
-					return { success: false, message: '修改密码时出错，密码校验时出错！' }
+					console.error('ERROR', 'Failed to update password: error when checking password:', { uid, error })
+					return { success: false, message: 'Failed to update password: error when checking password' }
 				}
 			} else {
-				console.error('ERROR', '修改密码失败，非法用户！', { uid })
-				return { success: false, message: '修改密码失败，非法用户！' }
+				console.error('ERROR', 'Failed to update password: unauthorized user!', { uid })
+				return { success: false, message: 'Failed to update password: unauthorized user!' }
 			}
 		} else {
-			console.error('ERROR', '修改密码失败，参数不合法！', { uid })
-			return { success: false, message: '修改密码失败，参数不合法！' }
+			console.error('ERROR', 'Failed to update password: invalid parameters!', { uid })
+			return { success: false, message: 'Failed to update password: invalid parameters!' }
 		}
 	} catch (error) {
-		console.error('ERROR', '修改密码时出错，未知错误', error)
-		return { success: false, message: '修改密码时出错，未知错误' }
+		console.error('ERROR', 'Failed to update password: unknown error', error)
+		return { success: false, message: 'Failed to update password: unknown error' }
 	}
 }
 
 // /**
-//  * // TODO: 计划中删除
-//  * // DELETE ME 这是一个临时的解决方案，以后 Cookie 中直接存储 UUID
-//  * 根据 UID 验证某个用户是否是某个角色
-//  * @param uid 用户 ID, 为空时会导致校验失败
-//  * @param role 用户的角色
-//  * @returns 校验结果，如果用户是这个角色返回 true，否则返回 false
+//  * // TODO: Planned to remove
+//  * // DELETE ME This is a temporary workaround; in the future cookie will store UUID directly
+//  * Verify whether a user is of a role by UID
+//  * @param uid User ID; empty will cause validation to fail
+//  * @param role User role
+//  * @returns Validation result: true if user has this role, otherwise false
 //  */
 // export const checkUserRoleService = async (uid: number, role: string | string[]): Promise<boolean> => {
 // 	// try {
-// 	// 	if (uid !== undefined && uid !== null && role) {
+// 	// 	if (UUID !== undefined && UUID !== null && role) {
 // 	// 		const { collectionName, schemaInstance } = UserAuthSchema
 // 	// 		type UserAuth = InferSchemaType<typeof schemaInstance>
 // 	// 		let userTokenWhere: QueryType<UserAuth> = {
@@ -2274,33 +2274,33 @@ export const changePasswordService = async (updateUserPasswordRequest: UpdateUse
 // 	// 				if (checkUserRoleResult.result?.length === 1) {
 // 	// 					return true
 // 	// 				} else {
-// 	// 					console.error('ERROR', `验证用户角色时，用户信息长度不为 1，用户uid：【${uid}】`)
+// 	// 					console.error('ERROR', `Verification failed when checking user role: user information length is not 1, user uid: ${uid}`)
 // 	// 					return false
 // 	// 				}
 // 	// 			} else {
-// 	// 				console.error('ERROR', `验证用户角色时未查询到用户信息，用户uid：【${uid}】`)
+// 	// 				console.error('ERROR', `Verification failed when checking user role: user information not found, user uid: ${uid}`)
 // 	// 				return false
 // 	// 			}
 // 	// 		} catch (error) {
-// 	// 			console.error('ERROR', `验证用户角色时出错，用户uid：【${uid}】，错误信息：`, error)
+// 	// 			console.error('ERROR', `Verification failed when checking user role: error when checking user uid: ${uid}, error:`, error)
 // 	// 			return false
 // 	// 		}
 // 	// 	} else {
-// 	// 		console.error('ERROR', `验证用户角色失败！用户 uid 或 role 不存在，用户 UID：${uid}`)
+// 	// 		console.error('ERROR', `Verification failed when checking user role: user uid or role does not exist, user UID: ${uid}`)
 // 	// 		return false
 // 	// 	}
 // 	// } catch (error) {
-// 	// 	console.error('ERROR', `验证用户角色失败！用户 UID：${uid}`, error)
+// 	// 	console.error('ERROR', `Verification failed when checking user role: user UID: ${uid}`, error)
 // 	// 	return false
 // 	// }
 // 	return role !== 'admin' && role !== 'blocked'
 // }
 
 /**
- * 验证某个用户是否是某个角色
- * @param UUID 用户 UUID, 为空时会导致校验失败
- * @param role 用户的角色
- * @returns 校验结果，如果用户是这个角色返回 true，否则返回 false
+ * Check if a user is a certain role based on UUID
+ * @param UUID User UUID, empty will cause verification failure
+ * @param role User role
+ * @returns Verification result; if user is this role, return true, otherwise return false
  */
 // export const checkUserRoleByUUIDService = async (UUID: string, role: string | string[]): Promise<boolean> => {
 // 	// try {
@@ -2331,32 +2331,32 @@ export const changePasswordService = async (updateUserPasswordRequest: UpdateUse
 // 	// 				if (checkUserRoleResult.result?.length === 1) {
 // 	// 					return true
 // 	// 				} else {
-// 	// 					console.error('ERROR', `验证用户角色时，用户信息长度不为 1，用户 UUID: ${UUID}`)
+// 	// 					console.error('ERROR', `Verification failed when checking user role: user information length is not 1, user UUID: ${UUID}`)
 // 	// 					return false
 // 	// 				}
 // 	// 			} else {
-// 	// 				console.error('ERROR', `验证用户角色时未查询到用户信息，用户 UUID:${UUID}`)
+// 	// 				console.error('ERROR', `Verification failed when checking user role: user information not found, user UUID:${UUID}`)
 // 	// 				return false
 // 	// 			}
 // 	// 		} catch (error) {
-// 	// 			console.error('ERROR', `验证用户角色时出错，用户 UUID:${UUID}，错误信息：`, error)
+// 	// 			console.error('ERROR', `Verification failed when checking user role: error when checking user UUID:${UUID}, error:`, error)
 // 	// 			return false
 // 	// 		}
 // 	// 	} else {
-// 	// 		console.error('ERROR', `验证用户角色失败！用户 UUID 或 role 不存在，用户 UUID: ${UUID}`)
+// 	// 		console.error('ERROR', `Verification failed when checking user role: user UUID or role does not exist, user UUID: ${UUID}`)
 // 	// 		return false
 // 	// 	}
 // 	// } catch (error) {
-// 	// 	console.error('ERROR', `验证用户角色失败！用户 UUID: ${UUID}`, error)
+// 	// 	console.error('ERROR', `Verification failed when checking user role: user UUID: ${UUID}`, error)
 // 	// 	return false
 // 	// }
 // 	return role !== 'admin' && role !== 'blocked'
 // }
 
 /**
- * 检查用户名是否可用
- * @param checkUsernameRequest 检查用户名是否可用的请求载荷
- * @returns 检查用户名是否可用的请求响应
+ * Check if a username is available
+ * @param checkUsernameRequest Request payload for checking if a username is available
+ * @returns Response for checking if a username is available request
  */
 export const checkUsernameService = async (checkUsernameRequest: CheckUsernameRequestDto): Promise<CheckUsernameResponseDto> => {
 	try {
@@ -2374,38 +2374,38 @@ export const checkUsernameService = async (checkUsernameRequest: CheckUsernameRe
 				const checkUsername = await selectDataFromMongoDB(checkUsernameWhere, checkUsernameSelete, schemaInstance, collectionName)
 				if (checkUsername.success) {
 					if (checkUsername.result?.length === 0) {
-						return { success: true, message: '用户名可用', isAvailableUsername: true }
+						return { success: true, message: 'Username available', isAvailableUsername: true }
 					} else {
-						return { success: true, message: '用户名重复', isAvailableUsername: false }
+						return { success: true, message: 'Username already taken', isAvailableUsername: false }
 					}
 				} else {
-					console.error('ERROR', '检查用户名失败，请求用户数据失败')
-					return { success: false, message: '检查用户名失败，请求用户数据失败', isAvailableUsername: false }
+					console.error('ERROR', 'Failed to check username: failed to retrieve user data')
+					return { success: false, message: 'Failed to check username: failed to retrieve user data', isAvailableUsername: false }
 				}
 			} catch (error) {
-				console.error('ERROR', '检查用户名时出错，请求用户数据出错', error)
-				return { success: false, message: '检查用户名时出错，请求用户数据出错', isAvailableUsername: false }
+				console.error('ERROR', 'Failed to check username:', error, 'request user data failed')
+				return { success: false, message: 'Failed to check username: failed to retrieve user data', isAvailableUsername: false }
 			}
 		} else {
-			console.error('ERROR', '检查用户名失败，参数不合法')
-			return { success: false, message: '检查用户名失败，参数不合法', isAvailableUsername: false }
+			console.error('ERROR', 'Failed to check username: invalid parameters')
+			return { success: false, message: 'Failed to check username: invalid parameters', isAvailableUsername: false }
 		}
 	} catch (error) {
-		console.error('ERROR', '检查用户名时出错，未知错误', error)
-		return { success: false, message: '检查用户名时出错，未知错误', isAvailableUsername: false }
+		console.error('ERROR', 'Failed to check username:', error)
+		return { success: false, message: 'Failed to check username: unknown error', isAvailableUsername: false }
 	}
 }
 
 /**
- * 根据 UUID 校验用户是否已经存在
- * @param checkUserExistsByUuidRequest 根据 UUID 校验用户是否已经存在的请求载荷
- * @returns 根据 UUID 校验用户是否已经存在的请求响应
+ * Check if a user exists based on UUID
+ * @param checkUserExistsByUuidRequest Request payload for checking if a user exists based on UUID
+ * @returns Response for checking if a user exists based on UUID request
  */
 export const checkUserExistsByUuidService = async (checkUserExistsByUuidRequest: CheckUserExistsByUuidRequestDto): Promise<CheckUserExistsByUuidResponseDto> => {
 	try {
 		if (!checkCheckUserExistsByUuidRequest(checkUserExistsByUuidRequest)) {
-			console.error('ERROR', '查询用户是否存在时失败：参数不合法')
-			return { success: false, exists: false, message: '查询用户是否存在时失败：参数不合法' }
+			console.error('ERROR', 'Failed to check if user exists: invalid parameters')
+			return { success: false, exists: false, message: 'Failed to check if user exists: invalid parameters' }
 		}
 
 		const { uuid } = checkUserExistsByUuidRequest
@@ -2422,39 +2422,39 @@ export const checkUserExistsByUuidService = async (checkUserExistsByUuidRequest:
 		try {
 			result = await selectDataFromMongoDB(where, select, schemaInstance, collectionName)
 		} catch (error) {
-			console.error('ERROR', '根据 UUID 校验用户是否已经存在时出错：查询出错', error)
-			return { success: false, exists: false, message: '根据 UUID 校验用户是否已经存在时出错：查询出错' }
+			console.error('ERROR', 'Failed to check if user exists based on UUID:', error, 'query failed')
+			return { success: false, exists: false, message: 'Failed to check if user exists based on UUID: query failed' }
 		}
 
 		if (result && result.success && result.result) {
 			if (result.result?.length > 0) {
-				return { success: true, exists: true, message: '用户已存在' }
+				return { success: true, exists: true, message: 'User already exists' }
 			} else {
-				return { success: true, exists: false, message: '用户不存在' }
+				return { success: true, exists: false, message: 'User does not exist' }
 			}
 		} else {
-			return { success: false, exists: false, message: '查询失败' }
+			return { success: false, exists: false, message: 'Query failed' }
 		}
 	} catch (error) {
-		console.error('ERROR', '查询用户是否存在时出错：未知错误', error)
-		return { success: false, exists: false, message: '查询用户是否存在时出错：未知错误' }
+		console.error('ERROR', 'Failed to check if user exists based on UUID:', error)
+		return { success: false, exists: false, message: 'Failed to check if user exists based on UUID: unknown error' }
 	}
 }
 
 /**
- * 获取所有被封禁用户的信息
- * @param adminUid 管理员的 UID
- * @param adminToken 管理员的 Token
- * @param GetBlockedUserRequest 获取被封禁用户的请求载荷
- * @returns 获取所有被封禁用户的信息的请求响应
+ * Get information about all blocked users
+ * @param adminUid Admin UID
+ * @param adminToken Admin token
+ * @param GetBlockedUserRequest Request payload for getting blocked users
+ * @returns Result of getting information about all blocked users request
  */
 export const getBlockedUserService = async (adminUUID: string, adminToken: string, GetBlockedUserRequest: GetBlockedUserRequestDto): Promise<GetBlockedUserResponseDto> => {
 	try {
 		if (await checkUserTokenByUUID(adminUUID, adminToken)) {
 			const { sortBy, sortOrder } = GetBlockedUserRequest
 			if (!checkSortVariables(sortBy, sortOrder)) {
-				console.error('ERROR', '获取所有被封禁用户的信息失败，排序参数不合法')
-				return { success: false, message: '获取所有被封禁用户的信息失败，排序参数不合法', totalCount: 0 }
+				console.error('ERROR', 'Failed to get information about all blocked users: invalid sorting parameters')
+				return { success: false, message: 'Failed to get information about all blocked users: invalid sorting parameters', totalCount: 0 }
 			}
 
 			let pageSize = undefined
@@ -2474,7 +2474,7 @@ export const getBlockedUserService = async (adminUUID: string, adminToken: strin
 				},
 				{
 					$lookup: {
-						from: 'user-infos', // WARN: 别忘了加复数
+						from: 'user-infos', // WARN: Don't forget to add plural
 						localField: 'UUID',
 						foreignField: 'UUID',
 						as: 'user_info_data',
@@ -2483,7 +2483,7 @@ export const getBlockedUserService = async (adminUUID: string, adminToken: strin
 				{
 					$unwind: {
 						path: '$user_info_data',
-						preserveNullAndEmptyArrays: true, // 保留空数组和null值
+						preserveNullAndEmptyArrays: true, // Keep empty arrays and null values
 					},
 				},
 			]
@@ -2496,7 +2496,7 @@ export const getBlockedUserService = async (adminUUID: string, adminToken: strin
 				},
 				{
 					$lookup: {
-						from: 'user-infos', // WARN: 别忘了加复数
+						from: 'user-infos', // WARN: Don't forget to add plural
 						localField: 'UUID',
 						foreignField: 'UUID',
 						as: 'user_info_data',
@@ -2505,30 +2505,30 @@ export const getBlockedUserService = async (adminUUID: string, adminToken: strin
 				{
 					$unwind: {
 						path: '$user_info_data',
-						preserveNullAndEmptyArrays: true, // 保留空数组和null值
+						preserveNullAndEmptyArrays: true, // Keep empty arrays and null values
 					},
 				},
 				{ $sort: { [`user_info_data.${sortBy}`]: sortOrder === 'descend' ? -1 : 1 } },
-				{ $skip: skip }, // 跳过指定数量的文档
-				{ $limit: pageSize }, // 限制返回的文档数量
+				{ $skip: skip }, // Skip specified number of documents
+				{ $limit: pageSize }, // Limit number of documents returned
 			]
 
 			const projectStep = {
 				$project: {
 					uid: 1,
 					UUID: 1,
-					userCreateDateTime: 1, // 用户创建日期
-					roles: 1, // 用户的角色
-					username: '$user_info_data.username', // 用户名
-					userNickname: '$user_info_data.userNickname', // 用户昵称
-					email: 1, // 用户邮箱
-					totalCount: 1, // 总文档数
+					userCreateDateTime: 1, // User creation date
+					roles: 1, // User roles
+					username: '$user_info_data.username', // User name
+					userNickname: '$user_info_data.userNickname', // User nickname
+					email: 1, // User email
+					totalCount: 1, // Total number of documents
 				},
 			}
 			blockedUserPipeline.push(projectStep)
 
 			const countStep = {
-				$count: 'totalCount', // 统计总文档数
+				$count: 'totalCount', // Count total number of documents
 			}
 			blockedUserCountPipeline.push(countStep)
 
@@ -2536,47 +2536,47 @@ export const getBlockedUserService = async (adminUUID: string, adminToken: strin
 				const userCountResult = await selectDataByAggregateFromMongoDB(userAuthSchemaInstance, userAuthCollectionName, blockedUserCountPipeline)
 				const userResult = await selectDataByAggregateFromMongoDB(userAuthSchemaInstance, userAuthCollectionName, blockedUserPipeline)
 				if (!userResult.success) {
-					console.error('ERROR', '获取所有被封禁用户的信息失败，查询数据失败')
-					return { success: false, message: '获取所有被封禁用户的信息失败，查询数据失败', totalCount: 0 }
+					console.error('ERROR', 'Failed to get information about all blocked users: query failed')
+					return { success: false, message: 'Failed to get information about all blocked users: query failed', totalCount: 0 }
 				}
 
-				return { success: true, message: '获取所有被封禁用户的信息成功', result: userResult.result, totalCount: userCountResult.result?.[0]?.totalCount ?? 0 }
+				return { success: true, message: 'Information about all blocked users retrieved successfully', result: userResult.result, totalCount: userCountResult.result?.[0]?.totalCount ?? 0 }
 			} catch (error) {
-				console.error('ERROR', '获取所有被封禁用户的信息失败，查询数据时出错：', error)
-				return { success: false, message: '获取所有被封禁用户的信息失败，查询数据时出错', totalCount: 0 }
+				console.error('ERROR', 'Failed to get information about all blocked users:', error)
+				return { success: false, message: 'Failed to get information about all blocked users: query error', totalCount: 0 }
 			}
 		} else {
-			console.error('ERROR', '获取所有被封禁用户的信息失败，用户校验失败')
-			return { success: false, message: '获取所有被封禁用户的信息失败，用户校验失败', totalCount: 0 }
+			console.error('ERROR', 'Failed to get information about all blocked users: user verification failed')
+			return { success: false, message: 'Failed to get information about all blocked users: user verification failed', totalCount: 0 }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取所有被封禁用户的信息时出错，未知错误：', error)
-		return { success: false, message: '获取所有被封禁用户的信息时出错，未知错误', totalCount: 0 }
+		console.error('ERROR', 'Failed to get information about all blocked users:', error)
+		return { success: false, message: 'Failed to get information about all blocked users: unknown error', totalCount: 0 }
 	}
 }
 
 /**
- * 管理员获取用户信息
- * @param adminGetUserInfoServiceRequest 管理员获取用户信息的请求载荷
- * @param adminUUID 管理员的 UUID
- * @param adminToken 管理员的 Token
- * @returns 管理员获取用户信息的请求响应
+ * Admin get user information
+ * @param adminGetUserInfoServiceRequest Request payload for admin getting user information
+ * @param adminUUID Admin UUID
+ * @param adminToken Admin token
+ * @returns Result of admin getting user information request
  */
 export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetUserInfoRequestDto, adminUUID: string, adminToken: string): Promise<AdminGetUserInfoResponseDto> => {
 	try {
 		if (!checkAdminGetUserInfoRequest(adminGetUserInfoRequest)) {
-			console.error('ERROR', '管理员获取用户信息失败，请求参数不合法')
-			return { success: false, message: '管理员获取用户信息失败，请求参数不合法', totalCount: 0 }
+			console.error('ERROR', 'Failed to get user information: invalid request parameters')
+			return { success: false, message: 'Failed to get user information: invalid request parameters', totalCount: 0 }
 		}
 
 		if (!await checkUserTokenByUUID(adminUUID, adminToken)) {
-			console.error('ERROR', '管理员获取用户信息失败，用户校验未通过')
-			return { success: false, message: '管理员获取用户信息失败，用户校验未通过', totalCount: 0 }
+			console.error('ERROR', 'Failed to get user information: user verification failed')
+			return { success: false, message: 'Failed to get user information: user verification failed', totalCount: 0 }
 		}
 		const { sortBy, sortOrder } = adminGetUserInfoRequest
 		if (!checkSortVariables(sortBy, sortOrder)) {
-			console.error('ERROR', '管理员获取用户信息失败，排序参数不合法')
-			return { success: false, message: '管理员获取用户信息失败，排序参数不合法', totalCount: 0 }
+			console.error('ERROR', 'Failed to get user information: invalid sorting parameters')
+			return { success: false, message: 'Failed to get user information: invalid sorting parameters', totalCount: 0 }
 		}
 
 		let pageSize = undefined
@@ -2590,7 +2590,7 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 		const adminGetUserInfoCountPipeline: PipelineStage[] = [
 			{
 				$lookup: {
-					from: 'user-infos', // WARN: 别忘了加复数
+					from: 'user-infos', // WARN: Don't forget to add plural
 					localField: 'UUID',
 					foreignField: 'UUID',
 					as: 'user_info_data',
@@ -2599,7 +2599,7 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 			{
 				$unwind: {
 					path: '$user_info_data',
-					preserveNullAndEmptyArrays: true, // 保留空数组和null值
+					preserveNullAndEmptyArrays: true, // Keep empty arrays and null values
 				},
 			},
 		]
@@ -2607,7 +2607,7 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 		const adminGetUserInfoPipeline: PipelineStage[] = [
 			{
 				$lookup: {
-					from: 'user-infos', // WARN: 别忘了加复数
+					from: 'user-infos', // WARN: Don't forget to add plural
 					localField: 'UUID',
 					foreignField: 'UUID',
 					as: 'user_info_data',
@@ -2616,7 +2616,7 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 			{
 				$unwind: {
 					path: '$user_info_data',
-					preserveNullAndEmptyArrays: true, // 保留空数组和null值
+					preserveNullAndEmptyArrays: true, // Keep empty arrays and null values
 				},
 			},
 			{
@@ -2634,8 +2634,8 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 				},
 			},
 			{ $sort: { [`user_info_data.${sortBy}`]: sortOrder === 'descend' ? -1 : 1}},
-			{ $skip: skip }, // 跳过指定数量的文档
-			{ $limit: pageSize }, // 限制返回的文档数量
+			{ $skip: skip }, // Skip specified number of documents
+			{ $limit: pageSize }, // Limit number of documents returned
 		]
 
 		if (adminGetUserInfoRequest.isOnlyShowUserInfoUpdatedAfterReview) {
@@ -2662,27 +2662,27 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 			$project: {
 				uid: 1,
 				UUID: 1,
-				userCreateDateTime: 1, // 用户创建日期
-				roles: 1, // 用户的角色
-				email: 1, // 用户的邮箱
-				username: '$user_info_data.username', // 用户名
-				userNickname: '$user_info_data.userNickname', // 用户昵称
-				avatar: '$user_info_data.avatar', // 用户头像
-				userBannerImage: '$user_info_data.userBannerImage', // 用户的背景图
-				signature: '$user_info_data.signature', // 用户的个性签名
-				gender: '$user_info_data.gender', // 用户的性别
-				userBirthday: '$user_info_data.userBirthday', // 用户出生日期
-				invitationCode: '$invitation_codes_data.invitationCode', // 用户的邀请码
-				isUpdatedAfterReview: '$user_info_data.isUpdatedAfterReview', // 是否经过审核
-				editOperatorUUID: '$user_info_data.editOperatorUUID', // 编辑操作员的 UUID
-				editDateTime: '$user_info_data.editDateTime', // 编辑时间
-				totalCount: 1, // 总文档数
+				userCreateDateTime: 1, // User creation date
+				roles: 1, // User roles
+				email: 1, // User email
+				username: '$user_info_data.username', // User name
+				userNickname: '$user_info_data.userNickname', // User nickname
+				avatar: '$user_info_data.avatar', // User avatar
+				userBannerImage: '$user_info_data.userBannerImage', // User background image
+				signature: '$user_info_data.signature', // User signature
+				gender: '$user_info_data.gender', // User gender
+				userBirthday: '$user_info_data.userBirthday', // User birthdate
+				invitationCode: '$invitation_codes_data.invitationCode', // User invitation code
+				isUpdatedAfterReview: '$user_info_data.isUpdatedAfterReview', // Whether reviewed
+				editOperatorUUID: '$user_info_data.editOperatorUUID', // UUID of editor
+				editDateTime: '$user_info_data.editDateTime', // Edit time
+				totalCount: 1, // Total number of documents
 			},
 		}
 		adminGetUserInfoPipeline.push(projectStep)
 
 		const countStep = {
-			$count: 'totalCount', // 统计总文档数
+			$count: 'totalCount', // Count total number of documents
 		}
 		adminGetUserInfoCountPipeline.push(countStep)
 
@@ -2690,44 +2690,43 @@ export const adminGetUserInfoService = async (adminGetUserInfoRequest: AdminGetU
 			const userCountResult = await selectDataByAggregateFromMongoDB(userAuthSchemaInstance, userAuthCollectionName, adminGetUserInfoCountPipeline)
 			const userResult = await selectDataByAggregateFromMongoDB(userAuthSchemaInstance, userAuthCollectionName, adminGetUserInfoPipeline)
 			if (!userResult.success) {
-				console.error('ERROR', '管理员获取用户信息失败，查询数据失败')
-				return { success: false, message: '管理员获取用户信息失败，查询数据失败', totalCount: 0 }
+				console.error('ERROR', 'Failed to get user information: query failed')
+				return { success: false, message: 'Failed to get user information: query failed', totalCount: 0 }
 			}
 
-			return { success: true, message: '管理员获取用户信息成功', result: userResult.result, totalCount: userCountResult.result?.[0]?.totalCount ?? 0 }
+			return { success: true, message: 'Admin successfully retrieved user information', result: userResult.result, totalCount: userCountResult.result?.[0]?.totalCount ?? 0 }
 		} catch (error) {
-			console.error('ERROR', '管理员获取用户信息时出错，查询数据时出错：', error)
-			return { success: false, message: '管理员获取用户信息时出错，查询数据时出错', totalCount: 0 }
+			console.error('ERROR', 'Failed to get user information:', error)
+			return { success: false, message: 'Failed to get user information: query error', totalCount: 0 }
 		}
 	} catch (error) {
-		console.error('ERROR', '管理员获取用户信息时出错，未知错误：', error)
-		return { success: false, message: '管理员获取用户信息时出错，未知错误', totalCount: 0 }
+		console.error('ERROR', 'Failed to get user information:', error)
+		return { success: false, message: 'Failed to get user information: unknown error', totalCount: 0 }
 	}
 }
 
 /**
- * 管理员通过用户信息审核
- * @param approveUserInfoRequest 管理员通过用户信息审核的请求载荷
- * @param adminUUID 管理员的 UUID
- * @param adminToken 管理员的 Token
- * @returns 管理员通过用户信息审核的请求响应
+ * Admin approve user information
+ * @param approveUserInfoRequest Request payload for admin approving user information
+ * @param adminUUID Admin UUID
+ * @param adminToken Admin token
+ * @returns Result of admin approving user information request
  */
 export const approveUserInfoService = async (approveUserInfoRequest: ApproveUserInfoRequestDto, adminUUID: string, adminToken: string): Promise<ApproveUserInfoResponseDto> => {
 	try {
 		if (!checkApproveUserInfoRequest(approveUserInfoRequest)) {
-			console.error('ERROR', '管理员通过用户信息审核失败，参数不合法')
-			return { success: false, message: '管理员通过用户信息审核失败，参数不合法' }
+			console.error('ERROR', 'Failed to approve user information: invalid parameters')
+			return { success: false, message: 'Failed to approve user information: invalid parameters' }
 		}
 
 		if (!await checkUserTokenByUUID(adminUUID, adminToken)) {
-			console.error('ERROR', '管理员通过用户信息审核失败，用户校验未通过')
-			return { success: false, message: '管理员通过用户信息审核失败，用户校验未通过' }
+			console.error('ERROR', 'Failed to approve user information: user verification failed')
+			return { success: false, message: 'Failed to approve user information: user verification failed' }
 		}
 
 		const UUID = approveUserInfoRequest.UUID
 		const { collectionName, schemaInstance } = UserInfoSchema
 		type UserInfo = InferSchemaType<typeof schemaInstance>
-
 		const approveUserInfoWhere: QueryType<UserInfo> = {
 			UUID,
 		}
@@ -2738,45 +2737,45 @@ export const approveUserInfoService = async (approveUserInfoRequest: ApproveUser
 		try {
 			const updateResult = await findOneAndUpdateData4MongoDB(approveUserInfoWhere, approveUserInfoUpdate, schemaInstance, collectionName)
 			if (!updateResult.success) {
-				console.error('ERROR', '管理员通过用户信息审核失败，向数据库更新数据失败')
-				return { success: false, message: '管理员通过用户信息审核失败，向数据库更新数据失败' }
+				console.error('ERROR', 'Admin approve user info failed: database update failed')
+				return { success: false, message: 'Admin approve user info failed: database update failed' }
 			}
 
-			return { success: true, message: '管理员通过用户信息审核成功' }
+			return { success: true, message: 'Admin approve user info success' }
 		} catch (error) {
-			console.error('ERROR', '管理员通过用户信息审核时出错，向数据库更新数据时出错：', error)
-			return { success: false, message: '管理员通过用户信息审核时出错，向数据库更新数据时出错' }
+			console.error('ERROR', 'Admin approve user info error: database update error', error)
+			return { success: false, message: 'Admin approve user info error: database update error' }
 		}
 	} catch (error) {
-		console.error('ERROR', '管理员通过用户信息审核时出错，未知错误：', error)
-		return { success: false, message: '管理员通过用户信息审核时出错，未知错误' }
+		console.error('ERROR', 'Admin approve user info error: unknown error', error)
+		return { success: false, message: 'Admin approve user info error: unknown error' }
 	}
 }
 
 /**
- * 管理员清空某个用户的信息
- * @param approveUserInfoRequest 管理员清空某个用户的信息的请求载荷
- * @param adminUUID 管理员的 UUID
- * @param adminToken 管理员的 Token
- * @returns 管理员清空某个用户的信息请求响应
+ * Admin clears a user's profile info
+ * @param approveUserInfoRequest Request payload
+ * @param adminUUID Admin UUID
+ * @param adminToken Admin Token
+ * @returns Response
  */
 export const adminClearUserInfoService = async (adminClearUserInfoRequest: AdminClearUserInfoRequestDto, adminUUID: string, adminToken: string): Promise<AdminClearUserInfoResponseDto> => {
 	try {
 		if (!checkAdminClearUserInfoRequest(adminClearUserInfoRequest)) {
-			console.error('ERROR', '管理员清空某个用户的信息失败，参数不合法')
-			return { success: false, message: '管理员清空某个用户的信息失败，参数不合法' }
+			console.error('ERROR', "Admin clear user's info failed: invalid parameters")
+			return { success: false, message: "Admin clear user's info failed: invalid parameters" }
 		}
 
 		if (!await checkUserTokenByUUID(adminUUID, adminToken)) {
-			console.error('ERROR', '管理员清空某个用户的信息失败，用户校验未通过')
-			return { success: false, message: '管理员清空某个用户的信息失败，用户校验未通过' }
+			console.error('ERROR', "Admin clear user's info failed: user verification failed")
+			return { success: false, message: "Admin clear user's info failed: user verification failed" }
 		}
 
 		const uid = adminClearUserInfoRequest.uid
 		const UUID = await getUserUuid(uid)
 		if (!UUID) {
-			console.error('ERROR', '管理员清空某个用户的信息失败，UUID 不存在', { uid })
-			return { success: false, message: '管理员清空某个用户的信息失败，UUID 不存在' }
+			console.error('ERROR', "Admin clear user's info failed: UUID not found", { uid })
+			return { success: false, message: "Admin clear user's info failed: UUID not found" }
 		}
 		let username: string
 		while (true) {
@@ -2791,7 +2790,7 @@ export const adminClearUserInfoService = async (adminClearUserInfoRequest: Admin
 		type UserInfo = InferSchemaType<typeof schemaInstance>
 
 		const adminClearUserInfoWhere: QueryType<UserInfo> = {
-			uid, // TODO: 也许可以删掉
+			uid, // TODO: maybe can be removed
 			UUID,
 		}
 		const adminClearUserInfoUpdate: UpdateType<UserInfo> = {
@@ -2806,40 +2805,40 @@ export const adminClearUserInfoService = async (adminClearUserInfoRequest: Admin
 			userProfileMarkdown: '',
 			userLinkedAccounts: [] as UserInfo['userLinkedAccounts'], // TODO: Mongoose issue: #12420
 			userWebsite: { websiteName: '', websiteUrl: '' },
-			isUpdatedAfterReview: false, // 清除信息的直接设为 false
+			isUpdatedAfterReview: false, // After clearing info set to false directly
 			editOperatorUUID: adminUUID,
 			editDateTime: new Date().getTime(),
 		}
 		try {
 			const updateResult = await findOneAndUpdateData4MongoDB(adminClearUserInfoWhere, adminClearUserInfoUpdate, schemaInstance, collectionName)
 			if (!updateResult.success) {
-				console.error('ERROR', '管理员清空某个用户的信息失败，向数据库更新数据失败')
-				return { success: false, message: '管理员清空某个用户的信息失败，向数据库更新数据失败' }
+				console.error('ERROR', "Admin clear user's info failed: database update failed")
+				return { success: false, message: "Admin clear user's info failed: database update failed" }
 			}
 
-			return { success: true, message: '管理员清空某个用户的信息成功' }
+			return { success: true, message: "Admin clear user's info success" }
 		} catch (error) {
-			console.error('ERROR', '管理员清空某个用户的信息时出错，向数据库更新数据时出错：', error)
-			return { success: false, message: '管理员清空某个用户的信息时出错，向数据库更新数据时出错' }
+			console.error('ERROR', "Admin clear user's info error: database update error", error)
+			return { success: false, message: "Admin clear user's info error: database update error" }
 		}
 	} catch (error) {
-		console.error('ERROR', '管理员清空某个用户的信息时出错，未知错误：', error)
-		return { success: false, message: '管理员清空某个用户的信息时出错，未知错误' }
+		console.error('ERROR', "Admin clear user's info error: unknown error", error)
+		return { success: false, message: "Admin clear user's info error: unknown error" }
 	}
 }
 
 /**
- * 管理员编辑用户信息
- * @param AdminEditUserInfoRequestDto 管理员编辑用户信息的请求载荷
- * @param adminUUID 管理员的 UUID
- * @param adminToken 管理员的 Token
- * @return 管理员编辑用户信息的请求响应
+ * Admin edits user info
+ * @param AdminEditUserInfoRequestDto Request payload
+ * @param adminUUID Admin UUID
+ * @param adminToken Admin Token
+ * @return Response
  */
 export const adminEditUserInfoService = async (adminEditUserInfoRequest: AdminEditUserInfoRequestDto, adminUUID: string, adminToken: string): Promise<AdminEditUserInfoResponseDto> => {
 	try {
 		if (!checkAdminEditUserInfoRequest(adminEditUserInfoRequest)) {
-			console.error('ERROR', '管理员编辑用户信息失败，参数不合法')
-			return { success: false, message: '管理员编辑用户信息失败，参数不合法' }
+			console.error('ERROR', 'Admin edit user info failed: invalid parameters')
+			return { success: false, message: 'Admin edit user info failed: invalid parameters' }
 		}
 
 		const { uid } = adminEditUserInfoRequest
@@ -2869,20 +2868,20 @@ export const adminEditUserInfoService = async (adminEditUserInfoRequest: AdminEd
 			}
 
 			if (!isSafeUsername) {
-				console.error('ERROR', '更新用户信息失败，用户重名', { adminEditUserInfoRequest, uid })
-				return { success: false, message: '更新用户信息失败，用户重名' }
+				console.error('ERROR', 'Update user info failed: duplicate username', { adminEditUserInfoRequest, uid })
+				return { success: false, message: 'Update user info failed: duplicate username' }
 			}
 		}
 
 		const UUID = await getUserUuid(uid)
 		if (!UUID) {
-			console.error('ERROR', '管理员编辑用户信息失败，UUID 不存在', { uid })
-			return { success: false, message: '管理员编辑用户信息失败，UUID 不存在' }
+			console.error('ERROR', 'Admin edit user info failed: UUID not found', { uid })
+			return { success: false, message: 'Admin edit user info failed: UUID not found' }
 		}
 
 		if (!await checkUserTokenByUUID(adminUUID, adminToken)) {
-			console.error('ERROR', '管理员编辑用户信息失败，用户校验未通过')
-			return { success: false, message: '管理员编辑用户信息失败，用户校验未通过' }
+			console.error('ERROR', 'Admin edit user info failed: user verification failed')
+			return { success: false, message: 'Admin edit user info failed: user verification failed' }
 		}
 
 		type UserInfo = InferSchemaType<typeof userInfoSchemaInstance>
@@ -2897,26 +2896,26 @@ export const adminEditUserInfoService = async (adminEditUserInfoRequest: AdminEd
 
 		const updateUserInfoResult = await findOneAndUpdateData4MongoDB(adminEditUserInfoWhere, adminEditUserInfoUpdate, userInfoSchemaInstance, userInfoCollectionName)
 		if (!updateUserInfoResult.success) {
-			console.error('ERROR', '管理员编辑用户信息失败，向数据库更新数据失败')
-			return { success: false, message: '管理员编辑用户信息失败，向数据库更新数据失败' }
+			console.error('ERROR', 'Admin edit user info failed: database update failed')
+			return { success: false, message: 'Admin edit user info failed: database update failed' }
 		}
-		return { success: true, message: '管理员编辑用户信息成功' }
+		return { success: true, message: 'Admin edit user info success' }
 
 	} catch (error) {
-		console.error('ERROR', '管理员编辑用户信息时出错，未知错误：', error)
-		return { success: false, message: '管理员编辑用户信息时出错，未知错误' }
+		console.error('ERROR', 'Admin edit user info failed: unknown error', error)
+		return { success: false, message: 'Admin edit user info failed: unknown error' }
 	}
 }
 
 /**
- * 根据 UID 获取 UUID
- * @param uid 用户 UID
+ * Get UUID by UID
+ * @param uid User UID
  * @returns UUID
  */
 export const getUserUuid = async (uid: number): Promise<string | void> => {
 	try {
 		if (uid === undefined || uid === null || uid <= 0) {
-			console.error('ERROR', '通过 UID 获取 UUID 失败，UID 不合法')
+			console.error('ERROR', 'Get UUID by UID failed, invalid UID')
 			return
 		}
 		const { collectionName: userAuthCollectionName, schemaInstance: userAuthSchemaSchemaInstance } = UserAuthSchema
@@ -2934,23 +2933,23 @@ export const getUserUuid = async (uid: number): Promise<string | void> => {
 		if (getUuidResult.success && getUuidResult.result?.length === 1) {
 			return getUuidResult.result[0].UUID
 		} else {
-			console.error('ERROR', '通过 UID 获取 UUID 失败，UUID 不存在或结果长度不为 1')
+			console.error('ERROR', 'Get UUID by UID failed, UUID not found or result length not equal to 1')
 		}
 	} catch (error) {
-		console.error('ERROR', '通过 UID 获取 UUID 时出错：', error)
+		console.error('ERROR', 'Exception while getting UUID by UID:', error)
 		return
 	}
 }
 
 /**
- * 根据 UUID 获取 UID
- * @param uuid 用户 UUID
+ * Get UID by UUID
+ * @param uuid User UUID
  * @returns UID
  */
 export const getUserUid = async (uuid: string): Promise<number | undefined> => {
 	try {
 		if (!uuid) {
-			console.error('ERROR', '通过 UUID 获取 UID 失败，UUID 不合法')
+			console.error('ERROR', 'Get UID by UUID failed, invalid UUID')
 			return
 		}
 		const { collectionName: userAuthCollectionName, schemaInstance: userAuthSchemaSchemaInstance } = UserAuthSchema
@@ -2968,10 +2967,10 @@ export const getUserUid = async (uuid: string): Promise<number | undefined> => {
 		if (getUidResult.success && getUidResult.result?.length === 1) {
 			return getUidResult.result[0].uid
 		} else {
-			console.error('ERROR', '通过 UUID 获取 UID 失败，UID 不存在或结果长度不为 1')
+			console.error('ERROR', 'Get UID by UUID failed, UID not found or result length not equal to 1')
 		}
 	} catch (error) {
-		console.error('ERROR', '通过 UUID 获取 UID 时出错：', error)
+		console.error('ERROR', 'Exception while getting UID by UUID:', error)
 		return undefined
 	}
 }
@@ -3422,8 +3421,8 @@ export const createUserTotpAuthenticatorService = async (uuid: string, token: st
 export const confirmUserTotpAuthenticatorService = async (confirmUserTotpAuthenticatorRequest: ConfirmUserTotpAuthenticatorRequestDto, uuid: string, token: string): Promise<ConfirmUserTotpAuthenticatorResponseDto> => {
 	try {
 		if (!await checkUserTokenByUUID(uuid, token)) {
-			console.error('确认绑定 TOTP 设备失败，非法用户')
-			return { success: false, message: '确认绑定 TOTP 设备失败，非法用户' }
+			console.error('Confirm TOTP device failed: invalid user')
+			return { success: false, message: 'Confirm TOTP device failed: invalid user' }
 		}
 
 		const { clientOtp, otpAuth } = confirmUserTotpAuthenticatorRequest
@@ -3449,8 +3448,8 @@ export const confirmUserTotpAuthenticatorService = async (confirmUserTotpAuthent
 				await session.abortTransaction()
 			}
 			session.endSession()
-			console.error('确认绑定 TOTP 设备失败，获取验证数据失败')
-			return { success: false, message: '确认绑定 TOTP 设备失败，获取验证数据失败' }
+			console.error('Confirm TOTP device failed: failed to get verification data')
+			return { success: false, message: 'Confirm TOTP device failed: failed to get verification data' }
 		}
 
 		const totpSecret = selectResult.result[0].secret
@@ -3459,8 +3458,8 @@ export const confirmUserTotpAuthenticatorService = async (confirmUserTotpAuthent
 				await session.abortTransaction()
 			}
 			session.endSession()
-			console.error('确认绑定 TOTP 设备失败，验证失败')
-			return { success: false, message: '确认绑定 TOTP 设备失败，验证失败' }
+			console.error('Confirm TOTP device failed: verification failed')
+			return { success: false, message: 'Confirm TOTP device failed: verification failed' }
 		}
 
 		const now = new Date().getTime()
@@ -3496,16 +3495,16 @@ export const confirmUserTotpAuthenticatorService = async (confirmUserTotpAuthent
 				await session.abortTransaction()
 			}
 			session.endSession()
-			console.error('确认绑定 TOTP 设备失败，更新失败')
-			return { success: false, message: '确认绑定 TOTP 设备失败，更新失败' }
+			console.error('Confirm TOTP device failed: update failed')
+			return { success: false, message: 'Confirm TOTP device failed: update failed' }
 		}
 
 		await session.commitTransaction()
 		session.endSession()
 		return { success: true, result: { backupCode, recoveryCode }, message: '已绑定 TOTP 设备' }
 	} catch (error) {
-		console.error('确认绑定 TOTP 设备时出错，未知错误', error)
-		return { success: false, message: '确认绑定 TOTP 设备时出错，未知错误' }
+		console.error('Confirm TOTP device failed: unknown error', error)
+		return { success: false, message: 'Confirm TOTP device failed: unknown error' }
 	}
 }
 
@@ -4563,3 +4562,4 @@ const checkSortVariables = (sortBy: string, sortOrder: string): boolean => {
 	}
 	return true
 }
+

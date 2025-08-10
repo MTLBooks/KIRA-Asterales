@@ -7,13 +7,12 @@ import { RbacApiSchema, RbacRoleSchema } from "../dbPool/schema/RbacSchema.js";
 import { v4 as uuidV4 } from 'uuid'
 import { QueryType, SelectType, UpdateType } from "../dbPool/DbClusterPoolTypes.js";
 import { abortAndEndSession, commitAndEndSession, createAndStartSession } from "../common/MongoDBSessionTool.js";
-import { koaCtx } from "../type/koaTypes.js";
 import { clearUndefinedItemInObject, isEmptyObject } from "../common/ObjectTool.js";
 
 /**
- * 通过 RBAC 检查用户的权限
- * @param params 通过 RBAC 检查用户的权限的参数
- * @returns 通过 RBAC 检查用户的权限的结果
+ * Check user permission via RBAC
+ * @param params Parameters for RBAC permission check
+ * @returns RBAC check result
  */
 export const checkUserByRbac = async (params: CheckUserRbacParams): Promise<CheckUserRbacResult> => {
 	try {
@@ -24,19 +23,19 @@ export const checkUserByRbac = async (params: CheckUserRbacParams): Promise<Chec
 		if ('uid' in params) uid = params.uid
 
 		if (!uuid && uid === undefined) {
-			console.error('ERROR', '用户执行 RBAC 鉴权时失败，未提供 UUID 或 UID')
-			return { status: 500, message: `用户执行 RBAC 鉴权时失败，未提供 UUID 或 UID` }
+			console.error('ERROR', 'RBAC authorization failed: UUID or UID not provided')
+			return { status: 500, message: `RBAC authorization failed: UUID or UID not provided` }
 		}
 
 		const match = { UUID: uuid, uid }
 		const clearedMatch = clearUndefinedItemInObject(match)
 
 		const checkUserRbacPipeline: PipelineStage[] = [
-			// 匹配用户
+			// Match user
 			{
 				$match: clearedMatch,
 			},
-			// 关联 roles 集合
+			// Join roles collection
 			{
 				$lookup: {
 					from: "rbac-roles",
@@ -45,17 +44,17 @@ export const checkUserByRbac = async (params: CheckUserRbacParams): Promise<Chec
 					as: "rolesData"
 				}
 			},
-			// 展开 rolesData 数组（多个角色）
+			// Unwind rolesData (multiple roles)
 			{ $unwind: "$rolesData" },
-			// 展开 apiPathNamePermissions 数组（多个权限）
+			// Unwind apiPathNamePermissions (multiple permissions)
 			{ $unwind: "$rolesData.apiPathPermissions" },
-			// 过滤出匹配的 API 路径
+			// Filter by matching API path
 			{
 				$match: {
 					"rolesData.apiPathPermissions": apiPath
 				}
 			},
-			// 只返回有权限的数据
+			// Project only needed fields
 			{ $project: { UUID: 1 } }
 		]
 
@@ -64,66 +63,34 @@ export const checkUserByRbac = async (params: CheckUserRbacParams): Promise<Chec
 		const checkUserRbacResult = await selectDataByAggregateFromMongoDB<UserAuth>(userAuthSchemaInstance, userAuthCollectionName, checkUserRbacPipeline)
 
 		if (checkUserRbacResult && checkUserRbacResult.success && checkUserRbacResult.result && Array.isArray(checkUserRbacResult.result) && checkUserRbacResult.result.length > 0) {
-			return { status: 200, message: `用户 ${uuid ? `UUID: ${uuid}` : `UID: ${uid}`} 有权限访问 ${apiPath}` }
+			return { status: 200, message: `User ${uuid ? `UUID: ${uuid}` : `UID: ${uid}`} is allowed to access ${apiPath}` }
 		} else {
-			return { status: 403, message: `用户 ${uuid ? `UUID: ${uuid}` : `UID: ${uid}`} 在访问 ${apiPath} 的权限不足，或者用户不存在` }
+			return { status: 403, message: `User ${uuid ? `UUID: ${uuid}` : `UID: ${uid}`} has no permission to access ${apiPath}, or the user does not exist` }
 		}
 	} catch (error) {
-		console.error('ERROR', '用户执行 RBAC 鉴权时出现错误，未知错误：', error)
-		return { status: 500, message: '用户执行 RBAC 鉴权时出现错误，未知错误' }
+		console.error('ERROR', 'RBAC authorization error: unknown error', error)
+		return { status: 500, message: 'RBAC authorization error: unknown error' }
 	}
 }
 
-/**
- * 在 Controller 层通过 RBAC 检查用户的权限
- * 该函数是 checkUserByRbac 的二次封装，包含校验失败时 ctx 中状态码和错误信息的补全功能，并返回简单的 boolean 类型结果，该结果用于在 Controller 中判断后续代码是否需要继续执行
- * @param params 通过 RBAC 检查用户的权限的参数
- * @param ctx koa context
- * @returns boolean 类型的权限检查结果，通过返回 true，不通过返回 false
- */
-export const isPassRbacCheck = async (params: CheckUserRbacParams, ctx: koaCtx): Promise<boolean> => {
-	try {
-		// Dev bypass: allow disabling RBAC checks via environment variable
-		if (process.env.RBAC_DISABLE === 'true') {
-			console.warn('WARN', 'RBAC disabled by environment variable RBAC_DISABLE=true, allowing access to', ctx.path)
-			return true
-		}
-
-		const rbacCheckResult = await checkUserByRbac(params)
-		const { status: rbacStatus, message: rbacMessage } = rbacCheckResult
-		if (rbacStatus !== 200) {
-			ctx.status = rbacStatus
-			ctx.body = rbacMessage
-			console.warn('WARN', 'WARNING', 'RBAC', `${rbacStatus} - ${rbacMessage}`)
-			return false
-		}
-
-		return true
-	} catch (error) {
-		console.error('ERROR', '在 Controller 层执行 RBAC 鉴权时出现错误，未知错误：', error)
-		ctx.status = 500
-		ctx.body = '在 Controller 层执行 RBAC 鉴权时出现错误，未知错误'
-		return false
-	}
-}
 
 /**
- * 创建 RBAC API 路径
- * @param createRbacApiPathRequest 创建 RBAC API 路径的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 创建 RBAC API 路径的请求响应
+ * Create RBAC API path
+ * @param createRbacApiPathRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const createRbacApiPathService = async (createRbacApiPathRequest: CreateRbacApiPathRequestDto, uuid: string, token: string): Promise<CreateRbacApiPathResponseDto> => {
 	try {
 		if (!checkCreateRbacApiPathRequest(createRbacApiPathRequest)) {
-			console.error('ERROR', '创建 RBAC API 路径失败，参数不合法')
-			return { success: false, message: '创建 RBAC API 路径失败，参数不合法' }
+			console.error('ERROR', 'Create RBAC API path failed: invalid parameters')
+			return { success: false, message: 'Create RBAC API path failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '创建 RBAC API 路径失败，用户 Token 校验未通过')
-			return { success: false, message: '创建 RBAC API 路径失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Create RBAC API path failed: token verification failed')
+			return { success: false, message: 'Create RBAC API path failed: token verification failed' }
 		}
 
 		const { apiPath, apiPathType, apiPathColor, apiPathDescription } = createRbacApiPathRequest
@@ -149,13 +116,13 @@ export const createRbacApiPathService = async (createRbacApiPathRequest: CreateR
 		const insertResultData = insertResult?.result?.[0]
 
 		if (!insertResult.success || !insertResultData) {
-			console.error('ERROR', '创建 RBAC API 路径失败，数据插入失败')
-			return { success: false, message: '创建 RBAC API 路径失败，数据插入失败' }
+			console.error('ERROR', 'Create RBAC API path failed: insert failed')
+			return { success: false, message: 'Create RBAC API path failed: insert failed' }
 		}
 
 		return {
 			success: true,
-			message: '创建 RBAC API 路径成功',
+			message: 'Create RBAC API path success',
 			result: {
 				apiPathUuid: insertResultData.apiPathUuid,
 				apiPath: insertResultData.apiPath,
@@ -170,28 +137,28 @@ export const createRbacApiPathService = async (createRbacApiPathRequest: CreateR
 			}
 		}
 	} catch (error) {
-		console.error('ERROR', '创建 RBAC API 路径时出错，未知错误：', error)
-		return { success: false, message: '创建 RBAC API 路径时出错，未知错误' }
+		console.error('ERROR', 'Create RBAC API path error: unknown error', error)
+		return { success: false, message: 'Create RBAC API path error: unknown error' }
 	}
 }
 
 /**
- * 删除 RBAC API 路径
- * @param deleteRbacApiPathRequest 删除 RBAC API 路径的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 删除 RBAC API 路径的请求响应
+ * Delete RBAC API path
+ * @param deleteRbacApiPathRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const deleteRbacApiPathService = async (deleteRbacApiPathRequest: DeleteRbacApiPathRequestDto, uuid: string, token: string): Promise<DeleteRbacApiPathResponseDto> => {
 	try {
 		if (!checkDeleteRbacApiPathRequest(deleteRbacApiPathRequest)) {
-			console.error('ERROR', '删除 RBAC API 路径失败，参数不合法')
-			return { success: false, isAssigned: false, message: '删除 RBAC API 路径失败，参数不合法' }
+			console.error('ERROR', 'Delete RBAC API path failed: invalid parameters')
+			return { success: false, isAssigned: false, message: 'Delete RBAC API path failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '删除 RBAC API 路径失败，用户 Token 校验未通过')
-			return { success: false, isAssigned: false, message: '删除 RBAC API 路径失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Delete RBAC API path failed: token verification failed')
+			return { success: false, isAssigned: false, message: 'Delete RBAC API path failed: token verification failed' }
 		}
 
 		const { apiPath } = deleteRbacApiPathRequest
@@ -212,8 +179,8 @@ export const deleteRbacApiPathService = async (deleteRbacApiPathRequest: DeleteR
 
 		if (chackApiPathUnassignedResult.result?.length > 0) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '删除 RBAC API 路径失败，该 API 路径已经被绑定到一个角色，请先将其从角色中移出才能删除。')
-			return { success: false, isAssigned: true, message: '删除 RBAC API 路径失败，该 API 路径已经被绑定到一个角色，请先将其从角色中移出才能删除。' }
+			console.error('ERROR', 'Delete RBAC API path failed: the API path has been assigned to a role, please unassign it first')
+			return { success: false, isAssigned: true, message: 'Delete RBAC API path failed: the API path has been assigned to a role, please unassign it first' }
 		}
 
 		const { collectionName: rbacApiCollectionName, schemaInstance: rbacApiSchemaInstance } = RbacApiSchema
@@ -227,35 +194,35 @@ export const deleteRbacApiPathService = async (deleteRbacApiPathRequest: DeleteR
 
 		if (!deleteRbacApiResult.success) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '删除 RBAC API 路径失败，数据删除失败')
-			return { success: false, isAssigned: false, message: '删除 RBAC API 路径失败，数据删除失败' }
+			console.error('ERROR', 'Delete RBAC API path failed: deletion failed')
+			return { success: false, isAssigned: false, message: 'Delete RBAC API path failed: deletion failed' }
 		}
 
 		await commitAndEndSession(session)
-		return { success: true, isAssigned: false, message: '删除 RBAC API 路径成功' }
+		return { success: true, isAssigned: false, message: 'Delete RBAC API path success' }
 	} catch (error) {
-		console.error('ERROR', '创建 RBAC API 路径时出错，未知错误：', error)
-		return { success: false, isAssigned: false, message: '创建 RBAC API 路径时出错，未知错误' }
+		console.error('ERROR', 'Create RBAC API path error: unknown error', error)
+		return { success: false, isAssigned: false, message: 'Create RBAC API path error: unknown error' }
 	}
 }
 
 /**
- * 获取 RBAC API 路径
- * @param getRbacApiPathRequest 获取 RBAC API 路径的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 获取 RBAC API 路径的请求响应
+ * Get RBAC API paths
+ * @param getRbacApiPathRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const getRbacApiPathService = async (getRbacApiPathRequest: GetRbacApiPathRequestDto, uuid: string, token: string): Promise<GetRbacApiPathResponseDto> => {
 	try {
 		if (!checkGetRbacApiPathRequest(getRbacApiPathRequest)) {
-			console.error('ERROR', '获取 RBAC API 路径失败，参数不合法')
-			return { success: false, message: '获取 RBAC API 路径失败，参数不合法' }
+			console.error('ERROR', 'Get RBAC API path failed: invalid parameters')
+			return { success: false, message: 'Get RBAC API path failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '获取 RBAC API 路径失败，用户 Token 校验未通过')
-			return { success: false, message: '获取 RBAC API 路径失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Get RBAC API path failed: token verification failed')
+			return { success: false, message: 'Get RBAC API path failed: token verification failed' }
 		}
 
 		const { search, pagination } = getRbacApiPathRequest
@@ -272,12 +239,12 @@ export const getRbacApiPathService = async (getRbacApiPathRequest: GetRbacApiPat
 			...(!isEmptyObject(clearedSearch) ? [{
 				$match: {
 					$and: Object.entries(clearedSearch).map(([key, value]) => ({
-						[key]: { $regex: value, $options: "i" } // 生成模糊查询
+						[key]: { $regex: value, $options: "i" } // fuzzy search
 					}))
 				},
 			}] : []),
 			{
-				$count: 'totalCount', // 统计总文档数
+				$count: 'totalCount', // total documents
 			},
 		]
 
@@ -285,7 +252,7 @@ export const getRbacApiPathService = async (getRbacApiPathRequest: GetRbacApiPat
 			...(!isEmptyObject(clearedSearch) ? [{
 				$match: {
 					$and: Object.entries(clearedSearch).map(([key, value]) => ({
-						[key]: { $regex: value, $options: "i" } // 生成模糊查询
+						[key]: { $regex: value, $options: "i" } // fuzzy search
 					}))
 				},
 			}] : []),
@@ -299,16 +266,16 @@ export const getRbacApiPathService = async (getRbacApiPathRequest: GetRbacApiPat
 			},
 			{
 				$addFields: {
-					isAssignedOnce: { $gt: [{ $size: "$matchedDocs" }, 0] } // 如果 matchedDocs 有数据，则为 true
+					isAssignedOnce: { $gt: [{ $size: "$matchedDocs" }, 0] } // true if any matches
 				}
 			},
 			{
 				$project: {
-					matchedDocs: 0 // 删除 matchedDocs 字段，保持 A 集合的原始结构
+					matchedDocs: 0 // remove temp field to keep original structure
 				}
 			},
-			{ $skip: skip }, // 跳过指定数量的文档
-			{ $limit: pageSize }, // 限制返回的文档数量
+			{ $skip: skip }, // pagination skip
+			{ $limit: pageSize }, // pagination limit
 		]
 
 		const { collectionName: rbacApiCollectionName, schemaInstance: rbacApiSchemaInstance } = RbacApiSchema
@@ -325,38 +292,38 @@ export const getRbacApiPathService = async (getRbacApiPathRequest: GetRbacApiPat
 			|| typeof count !== 'number' || count < 0
 			|| ( Array.isArray(result) && !result )
 		) {
-			console.error('ERROR', '获取 RBAC API 路径失败，获取数据失败')
-			return { success: false, message: '获取 RBAC API 路径失败，获取数据失败' }
+			console.error('ERROR', 'Get RBAC API path failed: query failed')
+			return { success: false, message: 'Get RBAC API path failed: query failed' }
 		}
 
 		if (count === 0) {
-			return { success: true, message: '未查询到 RBAC API 路径', count: 0, result: [] }
+			return { success: true, message: 'No RBAC API path found', count: 0, result: [] }
 		} else {
-			return { success: true, message: '查询 RBAC API 路径成功', count, result }
+			return { success: true, message: 'Get RBAC API path success', count, result }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取 RBAC API 路径时出错，未知错误', error)
-		return { success: false, message: '获取 RBAC API 路径时出错，未知错误' }
+		console.error('ERROR', 'Get RBAC API path error: unknown error', error)
+		return { success: false, message: 'Get RBAC API path error: unknown error' }
 	}
-} 
+}
 
 /**
- * 创建 RBAC 角色
- * @param createRbacRoleRequest 创建 RBAC 角色的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 创建 RBAC 角色的请求响应
+ * Create RBAC role
+ * @param createRbacRoleRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const createRbacRoleService = async (createRbacRoleRequest: CreateRbacRoleRequestDto, uuid: string, token: string): Promise<CreateRbacRoleResponseDto> => {
 	try {
 		if (!checkCreateRbacRoleRequest(createRbacRoleRequest)) {
-			console.error('ERROR', '创建 RBAC 角色失败，参数不合法')
-			return { success: false, message: '创建 RBAC 角色失败，参数不合法' }
+			console.error('ERROR', 'Create RBAC role failed: invalid parameters')
+			return { success: false, message: 'Create RBAC role failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '创建 RBAC 角色失败，用户 Token 校验未通过')
-			return { success: false, message: '创建 RBAC 角色失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Create RBAC role failed: token verification failed')
+			return { success: false, message: 'Create RBAC role failed: token verification failed' }
 		}
 
 		const { roleName, roleType, roleColor, roleDescription } = createRbacRoleRequest
@@ -383,34 +350,34 @@ export const createRbacRoleService = async (createRbacRoleRequest: CreateRbacRol
 		const insertResultData = insertResult?.result?.[0]
 
 		if (!insertResult.success || !insertResultData) {
-			console.error('ERROR', '创建 RBAC 角色失败，数据插入失败')
-			return { success: false, message: '创建 RBAC 角色失败，数据插入失败' }
+			console.error('ERROR', 'Create RBAC role failed: insert failed')
+			return { success: false, message: 'Create RBAC role failed: insert failed' }
 		}
 
-		return { success: true, message: '创建 RBAC 角色成功', result: insertResultData }
+		return { success: true, message: 'Create RBAC role success', result: insertResultData }
 	} catch (error) {
-		console.error('ERROR', '创建 RBAC 角色时出错，未知错误：', error)
-		return { success: false, message: '创建 RBAC 角色时出错，未知错误' }
+		console.error('ERROR', 'Create RBAC role error: unknown error', error)
+		return { success: false, message: 'Create RBAC role error: unknown error' }
 	}
 }
 
 /**
- * 删除 RBAC 角色
- * @param deleteRbacRoleRequest 删除 RBAC 角色的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 删除 RBAC 角色的请求响应
+ * Delete RBAC role
+ * @param deleteRbacRoleRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const deleteRbacRoleService = async (deleteRbacRoleRequest: DeleteRbacRoleRequestDto, uuid: string, token: string): Promise<DeleteRbacRoleResponseDto> => {
 	try {
 		if (!checkDeleteRbacRoleRequest(deleteRbacRoleRequest)) {
-			console.error('ERROR', '删除 RBAC 角色失败，参数不合法')
-			return { success: false, message: '删除 RBAC 角色失败，参数不合法' }
+			console.error('ERROR', 'Delete RBAC role failed: invalid parameters')
+			return { success: false, message: 'Delete RBAC role failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '删除 RBAC 角色失败，用户 Token 校验未通过')
-			return { success: false, message: '删除 RBAC 角色失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Delete RBAC role failed: token verification failed')
+			return { success: false, message: 'Delete RBAC role failed: token verification failed' }
 		}
 
 		const { roleName } = deleteRbacRoleRequest
@@ -425,34 +392,34 @@ export const deleteRbacRoleService = async (deleteRbacRoleRequest: DeleteRbacRol
 		const deleteResult = await deleteDataFromMongoDB(deleteRbacRoleWhere, rbacRoleSchemaInstance, rbacRoleCollectionName)
 
 		if (!deleteResult.success) {
-			console.error('ERROR', '删除 RBAC 角色失败，数据插入失败')
-			return { success: false, message: '删除 RBAC 角色失败，数据插入失败' }
+			console.error('ERROR', 'Delete RBAC role failed: deletion failed')
+			return { success: false, message: 'Delete RBAC role failed: deletion failed' }
 		}
 
-		return { success: true, message: '删除 RBAC 角色成功' }
+		return { success: true, message: 'Delete RBAC role success' }
 	} catch (error) {
-		console.error('ERROR', '删除 RBAC 角色时出错，未知错误：', error)
-		return { success: false, message: '删除 RBAC 角色时出错，未知错误' }
+		console.error('ERROR', 'Delete RBAC role error: unknown error', error)
+		return { success: false, message: 'Delete RBAC role error: unknown error' }
 	}
 }
 
 /**
- * 获取 RBAC 角色
- * @param getRbacRoleRequest 获取 RBAC 角色的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 获取 RBAC 角色的请求响应
+ * Get RBAC roles
+ * @param getRbacRoleRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const getRbacRoleService = async (getRbacRoleRequest: GetRbacRoleRequestDto, uuid: string, token: string): Promise<GetRbacRoleResponseDto> => {
 	try {
 		if (!checkGetRbacRoleRequest(getRbacRoleRequest)) {
-			console.error('ERROR', '获取 RBAC 角色失败，参数不合法')
-			return { success: false, message: '获取 RBAC 角色失败，参数不合法' }
+			console.error('ERROR', 'Get RBAC role failed: invalid parameters')
+			return { success: false, message: 'Get RBAC role failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '获取 RBAC 角色失败，用户 Token 校验未通过')
-			return { success: false, message: '获取 RBAC 角色失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Get RBAC role failed: token verification failed')
+			return { success: false, message: 'Get RBAC role failed: token verification failed' }
 		}
 
 		const { search, pagination } = getRbacRoleRequest
@@ -469,12 +436,12 @@ export const getRbacRoleService = async (getRbacRoleRequest: GetRbacRoleRequestD
 			...(!isEmptyObject(clearedSearch) ? [{
 				$match: {
 					$and: Object.entries(clearedSearch).map(([key, value]) => ({
-						[key]: { $regex: value, $options: "i" } // 生成模糊查询
+						[key]: { $regex: value, $options: "i" } // fuzzy search
 					}))
 				},
 			}] : []),
 			{
-				$count: 'totalCount', // 统计总文档数
+				$count: 'totalCount', // total documents
 			},
 		]
 
@@ -482,7 +449,7 @@ export const getRbacRoleService = async (getRbacRoleRequest: GetRbacRoleRequestD
 			...(!isEmptyObject(clearedSearch) ? [{
 				$match: {
 					$and: Object.entries(clearedSearch).map(([key, value]) => ({
-						[key]: { $regex: value, $options: "i" } // 生成模糊查询
+						[key]: { $regex: value, $options: "i" } // fuzzy search
 					}))
 				},
 			}] : []),
@@ -499,10 +466,10 @@ export const getRbacRoleService = async (getRbacRoleRequest: GetRbacRoleRequestD
 					apiPathList: "$apiPathList"
 				}
 			},
-			{ $skip: skip }, // 跳过指定数量的文档
-			{ $limit: pageSize }, // 限制返回的文档数量
+			{ $skip: skip }, // pagination skip
+			{ $limit: pageSize }, // pagination limit
 		]
-		
+
 		const { collectionName: rbacRoleCollectionName, schemaInstance: rbacRoleSchemaInstance } = RbacRoleSchema
 		type RbacRole = InferSchemaType<typeof rbacRoleSchemaInstance>
 
@@ -517,39 +484,39 @@ export const getRbacRoleService = async (getRbacRoleRequest: GetRbacRoleRequestD
 			|| typeof count !== 'number' || count < 0
 			|| ( Array.isArray(result) && !result )
 		) {
-			console.error('ERROR', '获取 RBAC 角色失败，获取数据失败')
-			return { success: false, message: '获取 RBAC 角色失败，获取数据失败' }
+			console.error('ERROR', 'Get RBAC role failed: query failed')
+			return { success: false, message: 'Get RBAC role failed: query failed' }
 		}
 
 		if (count === 0) {
-			return { success: true, message: '未查询到 RBAC 角色', count: 0, result: [] }
+			return { success: true, message: 'No RBAC role found', count: 0, result: [] }
 		} else {
-			return { success: true, message: '查询 RBAC API 路径成功', count, result }
+			return { success: true, message: 'Get RBAC API path success', count, result }
 		}
 
 	} catch (error) {
-		console.error('ERROR', '获取 RBAC 角色时出错，未知错误', error)
-		return { success: false, message: '获取 RBAC 角色时出错，未知错误' }
+		console.error('ERROR', 'Get RBAC role error: unknown error', error)
+		return { success: false, message: 'Get RBAC role error: unknown error' }
 	}
 }
 
 /**
- * 为角色更新 API 路径权限
- * @param updateApiPathPermissionsForRoleRequest 为角色更新 API 路径权限的请求载荷
- * @param uuid 用户 UUID
- * @param token 用户 Token
- * @returns 为角色更新 API 路径权限的请求响应
+ * Update API path permissions for a role
+ * @param updateApiPathPermissionsForRoleRequest Request payload
+ * @param uuid User UUID
+ * @param token User Token
+ * @returns Response
  */
 export const updateApiPathPermissionsForRoleService = async (updateApiPathPermissionsForRoleRequest: UpdateApiPathPermissionsForRoleRequestDto, uuid: string, token: string): Promise<UpdateApiPathPermissionsForRoleResponseDto> => {
 	try {
 		if (!checkUpdateApiPathPermissionsForRoleRequest(updateApiPathPermissionsForRoleRequest)) {
-			console.error('ERROR', '为角色更新 API 路径权限失败，参数不合法')
-			return { success: false, message: '为角色更新 API 路径权限失败，参数不合法' }
+			console.error('ERROR', 'Update role API path permissions failed: invalid parameters')
+			return { success: false, message: 'Update role API path permissions failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(uuid, token)).success) {
-			console.error('ERROR', '为角色更新 API 路径权限失败，用户 Token 校验未通过')
-			return { success: false, message: '为角色更新 API 路径权限失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Update role API path permissions failed: token verification failed')
+			return { success: false, message: 'Update role API path permissions failed: token verification failed' }
 		}
 
 		const { roleName, apiPathPermissions } = updateApiPathPermissionsForRoleRequest
@@ -561,7 +528,7 @@ export const updateApiPathPermissionsForRoleService = async (updateApiPathPermis
 		const checkApiPathPermissionsCountWhere: QueryType<RbacApiList> = {
 			apiPath: { $in: uniqueApiPathPermissions },
 		}
-		
+
 		const checkApiPathPermissionsCountSelect: SelectType<RbacApiList> = {
 			apiPath: 1,
 		}
@@ -572,14 +539,14 @@ export const updateApiPathPermissionsForRoleService = async (updateApiPathPermis
 
 		if (!checkApiPathPermissionsCountResult.success) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '为角色更新 API 路径权限失败，检查 API 路径失败')
-			return { success: false, message: '为角色更新 API 路径权限失败，检查 API 路径失败' }
+			console.error('ERROR', 'Update role API path permissions failed: check API path failed')
+			return { success: false, message: 'Update role API path permissions failed: check API path failed' }
 		}
 
 		if (checkApiPathPermissionsCountResult.result.length !== uniqueApiPathPermissions.length) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '为角色更新 API 路径权限失败，检查 API 路径未通过，可能是因为将一个不存在的路径添加到角色中')
-			return { success: false, message: '为角色更新 API 路径权限失败，检查 API 路径未通过，可能是因为将一个不存在的路径添加到角色中' }
+			console.error('ERROR', 'Update role API path permissions failed: some paths do not exist')
+			return { success: false, message: 'Update role API path permissions failed: some paths do not exist' }
 		}
 
 		const { collectionName: rbacRoleCollectionName, schemaInstance: rbacRoleSchemaInstance } = RbacRoleSchema
@@ -588,7 +555,7 @@ export const updateApiPathPermissionsForRoleService = async (updateApiPathPermis
 		const updateApiPathPermissions4RoleWhere: QueryType<RbacRole> = {
 			roleName,
 		}
-		
+
 		const now = new Date().getTime()
 		const updateApiPathPermissions4RoleData: UpdateType<RbacRole> = {
 			lastEditorUuid: uuid,
@@ -600,34 +567,34 @@ export const updateApiPathPermissionsForRoleService = async (updateApiPathPermis
 
 		if (!updateApiPathPermissions4Role.success) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '为角色更新 API 路径权限失败，更新失败')
-			return { success: false, message: '为角色更新 API 路径权限失败，更新失败' }
+			console.error('ERROR', 'Update role API path permissions failed: update failed')
+			return { success: false, message: 'Update role API path permissions failed: update failed' }
 		}
 
-		return { success: true, message: '为角色更新 API 路径权限成功', result: updateApiPathPermissions4Role.result }
+		return { success: true, message: 'Update role API path permissions success', result: updateApiPathPermissions4Role.result }
 	} catch (error) {
-		console.error('ERROR', '为角色更新 API 路径权限时出错，未知错误：', error)
-		return { success: false, message: '为角色更新 API 路径权限时出错，未知错误' }
+		console.error('ERROR', 'Update role API path permissions error: unknown error', error)
+		return { success: false, message: 'Update role API path permissions error: unknown error' }
 	}
 }
 
 /**
- * 管理员更新用户角色
- * @param adminUpdateUserRoleRequest 管理员更新用户角色的请求载荷
- * @param adminUuid 管理员 UUID
- * @param adminToken 管理员 Token
- * @returns 管理员更新用户角色的请求响应
+ * Admin update user roles
+ * @param adminUpdateUserRoleRequest Request payload
+ * @param adminUuid Admin UUID
+ * @param adminToken Admin Token
+ * @returns Response
  */
 export const adminUpdateUserRoleService = async (adminUpdateUserRoleRequest: AdminUpdateUserRoleRequestDto, adminUuid: string, adminToken: string): Promise<AdminUpdateUserRoleResponseDto> => {
 	try {
 		if (!checkAdminUpdateUserRoleRequest(adminUpdateUserRoleRequest)) {
-			console.error('ERROR', '管理员更新用户角色失败，参数不合法')
-			return { success: false, message: '管理员更新用户角色失败，参数不合法' }
+			console.error('ERROR', 'Admin update user roles failed: invalid parameters')
+			return { success: false, message: 'Admin update user roles failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(adminUuid, adminToken)).success) {
-			console.error('ERROR', '管理员更新用户角色失败，用户 Token 校验未通过')
-			return { success: false, message: '管理员更新用户角色失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Admin update user roles failed: token verification failed')
+			return { success: false, message: 'Admin update user roles failed: token verification failed' }
 		}
 
 		const { uid, newRoles } = adminUpdateUserRoleRequest
@@ -639,8 +606,8 @@ export const adminUpdateUserRoleService = async (adminUpdateUserRoleRequest: Adm
 		}
 
 		if (!uuid) {
-			console.error('ERROR', '管理员更新用户角色失败，未找到用户 UUID')
-			return { success: false, message: '管理员更新用户角色失败，未找到用户 UUID' }
+			console.error('ERROR', 'Admin update user roles failed: user UUID not found')
+			return { success: false, message: 'Admin update user roles failed: user UUID not found' }
 		}
 
 		const { collectionName: rbacRoleCollectionName, schemaInstance: rbacRoleSchemaInstance } = RbacRoleSchema
@@ -649,7 +616,7 @@ export const adminUpdateUserRoleService = async (adminUpdateUserRoleRequest: Adm
 		const checkNewRoelsCountWhere: QueryType<RbacRole> = {
 			roleName: { $in: uniqueNewRoels },
 		}
-		
+
 		const checkNewRoelsCountSelect: SelectType<RbacRole> = {
 			roleName: 1,
 		}
@@ -660,14 +627,14 @@ export const adminUpdateUserRoleService = async (adminUpdateUserRoleRequest: Adm
 
 		if (!checkNewRoelsCountResult.success) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '管理员更新用户角色失败，检查 API 路径失败')
-			return { success: false, message: '管理员更新用户角色失败，检查 API 路径失败' }
+			console.error('ERROR', 'Admin update user roles failed: check role failed')
+			return { success: false, message: 'Admin update user roles failed: check role failed' }
 		}
 
 		if (checkNewRoelsCountResult.result.length !== uniqueNewRoels.length) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '管理员更新用户角色失败，检查角色未通过，可能是因为将一个不存在的角色绑定给用户')
-			return { success: false, message: '管理员更新用户角色失败，检查角色未通过，可能是因为将一个不存在的角色绑定给用户' }
+			console.error('ERROR', 'Admin update user roles failed: some roles do not exist')
+			return { success: false, message: 'Admin update user roles failed: some roles do not exist' }
 		}
 
 		const { collectionName: userAuthCollectionName, schemaInstance: userAuthSchemaInstance } = UserAuthSchema
@@ -676,7 +643,7 @@ export const adminUpdateUserRoleService = async (adminUpdateUserRoleRequest: Adm
 		const updateApiPathPermissions4RoleWhere: QueryType<UserAuth> = {
 			UUID: uuid,
 		}
-		
+
 		const now = new Date().getTime()
 		const updateApiPathPermissions4RoleData: UpdateType<UserAuth> = {
 			roles: uniqueNewRoels as UserAuth['roles'], // TODO: Mongoose issue: #12420
@@ -687,35 +654,34 @@ export const adminUpdateUserRoleService = async (adminUpdateUserRoleRequest: Adm
 
 		if (!updateRoles4UserResult.success) {
 			await abortAndEndSession(session)
-			console.error('ERROR', '管理员更新用户角色失败，更新失败')
-			return { success: false, message: '管理员更新用户角色失败，更新失败' }
+			console.error('ERROR', 'Admin update user roles failed: update failed')
+			return { success: false, message: 'Admin update user roles failed: update failed' }
 		}
 
-		return { success: true, message: '管理员更新用户角色成功' }
+		return { success: true, message: 'Admin update user roles success' }
 	} catch (error) {
-		console.error('ERROR', '管理员更新用户角色时出错，未知错误：', error)
-		return { success: false, message: '管理员更新用户角色时出错，未知错误' }
+		console.error('ERROR', 'Admin update user roles error: unknown error', error)
+		return { success: false, message: 'Admin update user roles error: unknown error' }
 	}
 }
 
-
 /**
- * 通过 UID 获取一个用户的角色
- * @param adminGetUserRolesByUidRequest 通过 UID 获取一个用户的角色的请求载荷
- * @param adminUuid 管理员 UUID
- * @param adminToken 管理员 Token
- * @returns 通过 UID 获取一个用户的角色的请求响应
+ * Admin get user roles by UID
+ * @param adminGetUserRolesByUidRequest Request payload
+ * @param adminUuid Admin UUID
+ * @param adminToken Admin Token
+ * @returns Response
  */
 export const adminGetUserRolesByUidService = async (adminGetUserRolesByUidRequest: AdminGetUserRolesByUidRequestDto, adminUuid: string, adminToken: string): Promise<AdminGetUserRolesByUidResponseDto> => {
 	try {
 		if (!checkAdminGetUserRolesByUidRequest(adminGetUserRolesByUidRequest)) {
-			console.error('ERROR', '通过 UID 获取一个用户的角色失败，参数不合法')
-			return { success: false, message: '通过 UID 获取一个用户的角色失败，参数不合法' }
+			console.error('ERROR', 'Get user roles by UID failed: invalid parameters')
+			return { success: false, message: 'Get user roles by UID failed: invalid parameters' }
 		}
 
 		if (!(await checkUserTokenByUuidService(adminUuid, adminToken)).success) {
-			console.error('ERROR', '通过 UID 获取一个用户的角色失败，用户 Token 校验未通过')
-			return { success: false, message: '通过 UID 获取一个用户的角色失败，用户 Token 校验未通过' }
+			console.error('ERROR', 'Get user roles by UID failed: token verification failed')
+			return { success: false, message: 'Get user roles by UID failed: token verification failed' }
 		}
 
 		const { uid } = adminGetUserRolesByUidRequest
@@ -765,7 +731,7 @@ export const adminGetUserRolesByUidService = async (adminGetUserRolesByUidReques
 
 		const { schemaInstance: rbacRoleSchemaInstance } = RbacRoleSchema
 		type RbacRole = InferSchemaType<typeof rbacRoleSchemaInstance>
-		
+
 
 		const adminGerUserRolesResult = await selectDataByAggregateFromMongoDB<{
 			uid: UserAuth['uid'];
@@ -778,82 +744,81 @@ export const adminGetUserRolesByUidService = async (adminGetUserRolesByUidReques
 		const adminGerUserRolesData = adminGerUserRolesResult.result?.[0]
 
 		if (!adminGerUserRolesResult.success || !adminGerUserRolesData) {
-			console.error('ERROR', '通过 UID 获取一个用户的角色失败，查询数据失败')
-			return { success: false, message: '通过 UID 获取一个用户的角色失败，查询数据失败' }
+			console.error('ERROR', 'Get user roles by UID failed: query failed')
+			return { success: false, message: 'Get user roles by UID failed: query failed' }
 		}
 
-		return { success: true, message: '通过 UID 获取一个用户的角色成功', result: adminGerUserRolesData }
+		return { success: true, message: 'Get user roles by UID success', result: adminGerUserRolesData }
 	} catch (error) {
-		console.error('ERROR', '通过 UID 获取一个用户的角色时出错，未知错误：', error)
-		return { success: false, message: '通过 UID 获取一个用户的角色时出错，未知错误' }
+		console.error('ERROR', 'Get user roles by UID error: unknown error', error)
+		return { success: false, message: 'Get user roles by UID error: unknown error' }
 	}
 }
 
 /**
- * 校验创建 RBAC API 路径的请求载荷
- * @param createRbacApiPathRequest 创建 RBAC API 路径的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate create RBAC API path request
+ * @param createRbacApiPathRequest Request payload
+ * @returns true if valid
  */
 const checkCreateRbacApiPathRequest = (createRbacApiPathRequest: CreateRbacApiPathRequestDto): boolean => {
 	return (
 		!!createRbacApiPathRequest.apiPath
-		&& createRbacApiPathRequest.apiPathColor ? /^#([0-9A-Fa-f]{8})$/.test(createRbacApiPathRequest.apiPathColor) : true // 如果 apiPathColor 不为空，则测试是否符合八位 HAX 颜色代码格式（例如：#66CCFFFF），如果 apiPathColor 为空，则直接为 true
+		&& createRbacApiPathRequest.apiPathColor ? /^#([0-9A-Fa-f]{8})$/.test(createRbacApiPathRequest.apiPathColor) : true // if color provided, must be 8-char HEX like #66CCFFFF
 	)
 }
 
 /**
- * 校验删除 RBAC API 路径的请求载荷
- * @param deleteRbacApiPathRequest 删除 RBAC API 路径的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate delete RBAC API path request
+ * @param deleteRbacApiPathRequest Request payload
+ * @returns true if valid
  */
 const checkDeleteRbacApiPathRequest = (deleteRbacApiPathRequest: DeleteRbacApiPathRequestDto): boolean => {
 	return ( !!deleteRbacApiPathRequest.apiPath )
 }
 
-
 /**
- * 校验获取 RBAC API 路径的请求载荷
- * @param getRbacApiPathRequest 获取 RBAC API 路径的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate get RBAC API path request
+ * @param getRbacApiPathRequest Request payload
+ * @returns true if valid
  */
 const checkGetRbacApiPathRequest = (getRbacApiPathRequest: GetRbacApiPathRequestDto): boolean => {
-	return true // 没有什么好校验的
+	return true // nothing to validate
 }
 
 /**
- * 校验创建 RBAC 角色的请求载荷
- * @param createRbacApiPathRequest 创建 RBAC 角色的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate create RBAC role request
+ * @param createRbacApiPathRequest Request payload
+ * @returns true if valid
  */
 const checkCreateRbacRoleRequest = (createRbacRoleRequest: CreateRbacRoleRequestDto): boolean => {
 	return (
 		!!createRbacRoleRequest.roleName
-		&& createRbacRoleRequest.roleColor ? /^#([0-9A-Fa-f]{8})$/.test(createRbacRoleRequest.roleColor) : true // 如果 roleColor 不为空，则测试是否符合八位 HAX 颜色代码格式（例如：#66CCFFFF），如果 roleColor 为空，则直接为 true
+		&& createRbacRoleRequest.roleColor ? /^#([0-9A-Fa-f]{8})$/.test(createRbacRoleRequest.roleColor) : true // if color provided, must be 8-char HEX like #66CCFFFF
 	)
 }
 
 /**
- * 校验删除 RBAC 角色的请求载荷
- * @param createRbacApiPathRequest 删除 RBAC 角色的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate delete RBAC role request
+ * @param createRbacApiPathRequest Request payload
+ * @returns true if valid
  */
 const checkDeleteRbacRoleRequest = (deleteRbacRoleRequest: DeleteRbacRoleRequestDto): boolean => {
 	return ( !!deleteRbacRoleRequest.roleName )
 }
 
 /**
- * 检查获取 RBAC 角色的请求载荷
- * @param getRbacRoleRequest 获取 RBAC 角色的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate get RBAC role request
+ * @param getRbacRoleRequest Request payload
+ * @returns true if valid
  */
 const checkGetRbacRoleRequest = (getRbacRoleRequest: GetRbacRoleRequestDto): boolean => {
-	return true // 没什么好检查的
+	return true // nothing to validate
 }
 
 /**
- * 校验为角色更新 API 路径权限的请求载荷
- * @param updateApiPathPermissionsForRoleRequest 为角色更新 API 路径权限的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate update API path permissions for role request
+ * @param updateApiPathPermissionsForRoleRequest Request payload
+ * @returns true if valid
  */
 const checkUpdateApiPathPermissionsForRoleRequest = (updateApiPathPermissionsForRoleRequest: UpdateApiPathPermissionsForRoleRequestDto): boolean => {
 	return (
@@ -864,22 +829,22 @@ const checkUpdateApiPathPermissionsForRoleRequest = (updateApiPathPermissionsFor
 }
 
 /**
- * 校验管理员更新用户角色的请求载荷
- * @param adminUpdateUserRoleRequest 管理员更新用户角色的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate admin update user role request
+ * @param adminUpdateUserRoleRequest Request payload
+ * @returns true if valid
  */
 const checkAdminUpdateUserRoleRequest = (adminUpdateUserRoleRequest: AdminUpdateUserRoleRequestDto): boolean => {
 	return (
-		(!!adminUpdateUserRoleRequest.uuid || (adminUpdateUserRoleRequest.uid !== undefined && adminUpdateUserRoleRequest !== null)) // uuid 和 uid 至少有一个不为空
+		(!!adminUpdateUserRoleRequest.uuid || (adminUpdateUserRoleRequest.uid !== undefined && adminUpdateUserRoleRequest !== null)) // uuid or uid must be provided
 		&& !!adminUpdateUserRoleRequest.newRoles && Array.isArray(adminUpdateUserRoleRequest.newRoles)
 		&& adminUpdateUserRoleRequest.newRoles.every(role => !!role)
 	)
 }
 
 /**
- * 通过 UID 获取一个用户的角色
- * @param adminGetUserRolesByUidRequest 通过 UID 获取一个用户的角色的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate admin get user roles by UID request
+ * @param adminGetUserRolesByUidRequest Request payload
+ * @returns true if valid
  */
 const checkAdminGetUserRolesByUidRequest = (adminGetUserRolesByUidRequest: AdminGetUserRolesByUidRequestDto): boolean => {
 	return ( adminGetUserRolesByUidRequest.uid !== undefined && adminGetUserRolesByUidRequest.uid !== null )

@@ -17,6 +17,7 @@ import {
   adminEditUserInfoService,
   approveUserInfoService,
   adminClearUserInfoService,
+  checkUserExistsByUIDService,
 } from '../service/UserService.js'
 import type {
   RequestSendVerificationCodeRequestDto,
@@ -31,6 +32,7 @@ import type {
   AdminEditUserInfoRequestDto,
   ApproveUserInfoRequestDto,
   AdminClearUserInfoRequestDto,
+  UserExistsCheckByUIDRequestDto,
 } from './UserControllerDto.js'
 
 /**
@@ -134,6 +136,17 @@ export async function userEmailExistsCheckHandler(request: FastifyRequest, reply
   const q = request.query as any
   const dto: UserEmailExistsCheckRequestDto = { email: String(q?.email ?? '') }
   const result = await userEmailExistsCheckService(dto)
+  return reply.send(result)
+}
+
+/**
+ * Check if user exists by UID
+ * - Query: uid (number)
+ */
+export async function userExistsCheckByUIDHandler(request: FastifyRequest, reply: FastifyReply) {
+  const q = request.query as any
+  const dto: UserExistsCheckByUIDRequestDto = { uid: Number(q?.uid) }
+  const result = await checkUserExistsByUIDService(dto)
   return reply.send(result)
 }
 

@@ -114,6 +114,7 @@ import {
     requestSendChangeEmailVerificationCodeHandler,
     requestSendChangePasswordVerificationCodeHandler,
     checkUsernameHandler,
+    userExistsCheckByUIDHandler,
     adminEditUserInfoHandler as adminEditUserInfoHandlerNative,
     approveUserInfoHandler as approveUserInfoHandlerNative,
     adminClearUserInfoHandler as adminClearUserInfoHandlerNative,
@@ -143,6 +144,7 @@ export default async function registerRoutes(fastify: FastifyInstance) {
 
     // User (native replacements for remaining endpoints)
     fastify.get('/user/existsCheck', {}, userEmailExistsCheckHandler)
+    fastify.get('/user/exists', {}, userExistsCheckByUIDHandler)
     fastify.post('/user/update/email', { preHandler: [fastify.rbacGuard('uid')] }, updateUserEmailHandler)
     fastify.post('/user/update/info', { preHandler: [fastify.rbacGuard('uuid')] }, updateOrCreateUserInfoHandler)
     fastify.get('/user/info', {}, getUserInfoByUidHandler)

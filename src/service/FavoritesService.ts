@@ -7,11 +7,11 @@ import { getNextSequenceValueService } from './SequenceValueService.js'
 import { checkUserTokenService } from './UserService.js'
 
 /**
- * 创建收藏夹
- * @param createFavoritesRequest 创建收藏夹的请求载荷
- * @param uid 用户 ID
- * @param token 用户安全令牌
- * @returns 创建收藏夹的请求响应
+ * Create favorites
+ * @param createFavoritesRequest Request payload
+ * @param uid User ID
+ * @param token User token
+ * @returns Response
  */
 export const createFavoritesService = async (createFavoritesRequest: CreateFavoritesRequestDto, uid: number, token: string): Promise<CreateFavoritesResponseDto> => {
 	try {
@@ -23,7 +23,7 @@ export const createFavoritesService = async (createFavoritesRequest: CreateFavor
 
 				type FavoritesType = InferSchemaType<typeof schemaInstance>
 
-				// 启动事务
+				// Start transaction
 				const session = await mongoose.startSession()
 				session.startTransaction()
 
@@ -47,42 +47,42 @@ export const createFavoritesService = async (createFavoritesRequest: CreateFavor
 					if (createFavoritesResult.success && createFavoritesResult.result?.length === 1 && createFavoritesResult.result?.[0]) {
 						await session.commitTransaction()
 						session.endSession()
-						return { success: true, message: '创建收藏夹成功', result: createFavoritesResult.result[0] }
+						return { success: true, message: 'Create favorites success', result: createFavoritesResult.result[0] }
 					} else {
 						if (session.inTransaction()) {
 							await session.abortTransaction()
 						}
 						session.endSession()
-						console.error('ERROR', '创建收藏夹失败，数据存储失败')
-						return { success: false, message: '创建收藏夹失败，数据存储失败' }
+						console.error('ERROR', 'Create favorites failed: insert failed')
+						return { success: false, message: 'Create favorites failed: insert failed' }
 					}
 				} catch (error) {
 					if (session.inTransaction()) {
 						await session.abortTransaction()
 					}
 					session.endSession()
-					console.error('ERROR', '创建收藏夹失败，数据存储时出错：', error)
-					return { success: false, message: '创建收藏夹失败，数据存储时出错' }
+					console.error('ERROR', 'Create favorites failed: storage error:', error)
+					return { success: false, message: 'Create favorites failed: storage error' }
 				}
 			} else {
-				console.error('ERROR', '创建收藏夹失败，用户校验失败')
-				return { success: false, message: '创建收藏夹失败，用户校验失败' }
+				console.error('ERROR', 'Create favorites failed: user verification failed')
+				return { success: false, message: 'Create favorites failed: user verification failed' }
 			}
 		} else {
-			console.error('ERROR', '创建收藏夹失败，数据校验失败')
-			return { success: false, message: '创建收藏夹失败，数据校验失败' }
+			console.error('ERROR', 'Create favorites failed: validation failed')
+			return { success: false, message: 'Create favorites failed: validation failed' }
 		}
 	} catch (error) {
-		console.error('ERROR', '创建收藏夹失败，未知原因：', error)
-		return { success: false, message: '创建收藏夹失败，未知原因' }
+		console.error('ERROR', 'Create favorites failed: unknown error:', error)
+		return { success: false, message: 'Create favorites failed: unknown error' }
 	}
 }
 
 /**
- * 获取当前登录用户的收藏夹列表
- * @param uid 用户 ID
- * @param token 用户安全令牌
- * @returns 获取当前登录用户的收藏夹列表的请求响应
+ * Get favorites of current user
+ * @param uid User ID
+ * @param token User token
+ * @returns Response of favorites list
  */
 export const getFavoritesService = async (uid: number, token: string): Promise<GetFavoritesResponseDto> => {
 	try {
@@ -111,32 +111,32 @@ export const getFavoritesService = async (uid: number, token: string): Promise<G
 				const favorites = getFavoritesResult?.result
 				if (getFavoritesResult.success && favorites) {
 					if (favorites?.length > 0) {
-						return { success: true, message: '获取收藏夹列表成功', result: favorites }
+						return { success: true, message: 'Get favorites success', result: favorites }
 					} else {
-						return { success: true, message: '收藏夹列表为空', result: [] }
+						return { success: true, message: 'Favorites list is empty', result: [] }
 					}
 				} else {
-					console.error('ERROR', '获取收藏夹失败，请求收藏夹数据失败')
-					return { success: false, message: '获取收藏夹失败，请求收藏夹数据失败' }
+					console.error('ERROR', 'Get favorites failed: query failed')
+					return { success: false, message: 'Get favorites failed: query failed' }
 				}
 			} catch (error) {
-				console.error('ERROR', '获取收藏夹失败，请求收藏夹数据时出错', error)
-				return { success: false, message: '获取收藏夹失败，请求收藏夹数据时出错' }
+				console.error('ERROR', 'Get favorites failed: query error', error)
+				return { success: false, message: 'Get favorites failed: query error' }
 			}
 		} else {
-			console.error('ERROR', '获取收藏夹失败，用户校验失败')
-			return { success: false, message: '获取收藏夹失败，用户校验失败' }
+			console.error('ERROR', 'Get favorites failed: user verification failed')
+			return { success: false, message: 'Get favorites failed: user verification failed' }
 		}
 	} catch (error) {
-		console.error('ERROR', '获取收藏夹失败，未知原因：', error)
-		return { success: false, message: '获取收藏夹失败，未知原因' }
+		console.error('ERROR', 'Get favorites failed: unknown error:', error)
+		return { success: false, message: 'Get favorites failed: unknown error' }
 	}
 }
 
 /**
- * 检查创建收藏夹的请求载荷
- * @param createFavoritesRequest  创建收藏夹的请求载荷
- * @returns 合法返回 true, 不合法返回 false
+ * Validate create favorites request
+ * @param createFavoritesRequest Request payload
+ * @returns true if valid
  */
 const checkCreateFavoritesRequest = (createFavoritesRequest: CreateFavoritesRequestDto): boolean => {
 	return (!!createFavoritesRequest.favoritesTitle && createFavoritesRequest.favoritesTitle.length < 200)
