@@ -11,3 +11,4 @@ local/
 # macOS
 .DS_Store
 .envrc
+.env

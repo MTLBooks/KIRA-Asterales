@@ -7,8 +7,10 @@
 		"declaration": true,
 		"allowSyntheticDefaultImports": true,
 		"module": "NodeNext",
-		// "strict": true, // 好吧，严格模式
-		// ... rest
+		"skipLibCheck": true,
+		"types": [
+			"node"
+		]
 	},
 	"include": [
 		"src/**/*"

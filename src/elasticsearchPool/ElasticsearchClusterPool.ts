@@ -1,5 +1,5 @@
 import { Client } from '@elastic/elasticsearch'
-import { QueryDslQueryContainer } from '@elastic/elasticsearch/lib/api/types.js'
+//import { QueryDslQueryContainer } from '@elastic/elasticsearch/lib/api/types.js'
 import { isEmptyObject } from '../common/ObjectTool.js'
 import { EsResultType, EsSchema2TsType } from './ElasticsearchClusterPoolTypes.js'
 
@@ -12,6 +12,7 @@ export const connectElasticSearchCluster = async (): Promise<Client> => {
 		const ELASTICSEARCH_ADMIN_USERNAME = process.env.ELASTICSEARCH_ADMIN_USERNAME
 		const ELASTICSEARCH_ADMIN_PASSWORD = process.env.ELASTICSEARCH_ADMIN_PASSWORD
 		const ELASTICSEARCH_CLUSTER_HOST = process.env.ELASTICSEARCH_CLUSTER_HOST
+		const ELASTICSEARCH_PROTOCOL = process.env.ELASTICSEARCH_PROTOCOL === 'http' ? 'http' : 'https'
 
 		if (!ELASTICSEARCH_ADMIN_USERNAME) {
 			console.error('ERROR', '创建或连接搜索引擎集群失败：ELASTICSEARCH_ADMIN_USERNAME 为空，请检查环境变量设置')
@@ -26,7 +27,7 @@ export const connectElasticSearchCluster = async (): Promise<Client> => {
 			process.exit()
 		}
 
-		const ELASTICSEARCH_CLUSTER_HOST_LIST = ELASTICSEARCH_CLUSTER_HOST?.split(',')?.map(host => `https://${host}`)
+		const ELASTICSEARCH_CLUSTER_HOST_LIST = ELASTICSEARCH_CLUSTER_HOST?.split(',')?.map(host => `${ELASTICSEARCH_PROTOCOL}://${host}`)
 
 		if (!ELASTICSEARCH_CLUSTER_HOST_LIST || ELASTICSEARCH_CLUSTER_HOST_LIST?.length <= 0) {
 			console.error('ERROR', '创建或连接搜索引擎集群失败：ELASTICSEARCH_CLUSTER_HOST_LIST 为空，请检查环境变量设置，集群地址必须由以逗号分隔的集群地址和端口号组成，例：XXX.XXX.XXX.XXX:32000,YYY.YYY.YYY.YYY:32000,ZZZ.ZZZ.ZZZ.ZZZ:32000')
@@ -124,11 +125,11 @@ export const deleteDataFromElasticsearchCluster = async (client: Client, indexNa
  * @param refreshFlag 在插入数据后是否立即刷新搜索（在高并发场景下不建议立即刷新搜索）
  * @returns 插入数据的结果，如果成功则返回 {success: true}，否则 {success: false}
  */
-export const insertData2ElasticsearchCluster = async <T>(client: Client, indexName: string, schema: T, data: EsSchema2TsType<T>, refreshFlag: boolean = false): Promise< EsResultType< EsSchema2TsType<T> > > => {
+export const insertData2ElasticsearchCluster = async <T>(client: Client, indexName: string, schema: T, data: EsSchema2TsType<T>, refreshFlag: boolean = false): Promise<EsResultType<EsSchema2TsType<T>>> => {
 	try {
 		if (!isEmptyObject(schema as object) && !isEmptyObject(data) && indexName && client && !isEmptyObject(client)) {
 			try {
-				const indexResult = await client.index< EsSchema2TsType<T> >({
+				const indexResult = await client.index<EsSchema2TsType<T>>({
 					index: indexName,
 					document: data,
 				})
@@ -175,7 +176,7 @@ export const insertData2ElasticsearchCluster = async <T>(client: Client, indexNa
  * @param query 查询的参数，类似于数据库的 WHERE，但 Elasticsearch 有一套自己的逻辑，建议参考官方文档。
  * @returns 查询的返回结果
  */
-export const searchDataFromElasticsearchCluster = async <T>(client: Client, indexName: string, schema: T, query: QueryDslQueryContainer): Promise< EsResultType< EsSchema2TsType<T> > > => {
+export const searchDataFromElasticsearchCluster = async <T>(client: Client, indexName: string, schema: T, query: any): Promise<EsResultType<EsSchema2TsType<T>>> => {
 	try {
 		if (client && !isEmptyObject(client) && indexName && schema && !isEmptyObject(schema as object) && query && !isEmptyObject(query)) {
 			try {
