@@ -5,7 +5,7 @@ import { EsResultType, EsSchema2TsType } from './ElasticsearchClusterPoolTypes.j
 
 /**
  * Create Elasticsearch connection (should be created once during app lifecycle; used by Fastify plugin)
- * @returns Elasticsearch 客户端连接
+ * @returns Elasticsearch client connection
  */
 export const connectElasticSearchCluster = async (): Promise<Client> => {
 	try {
@@ -15,22 +15,22 @@ export const connectElasticSearchCluster = async (): Promise<Client> => {
 		const ELASTICSEARCH_PROTOCOL = process.env.ELASTICSEARCH_PROTOCOL === 'http' ? 'http' : 'https'
 
 		if (!ELASTICSEARCH_ADMIN_USERNAME) {
-			console.error('ERROR', '创建或连接搜索引擎集群失败：ELASTICSEARCH_ADMIN_USERNAME 为空，请检查环境变量设置')
+			console.error('ERROR', 'Failed to create or connect to search engine cluster: ELASTICSEARCH_ADMIN_USERNAME is empty, please check environment variable settings')
 			process.exit()
 		}
 		if (!ELASTICSEARCH_ADMIN_PASSWORD) {
-			console.error('ERROR', '创建或连接搜索引擎集群失败：ELASTICSEARCH_ADMIN_PASSWORD 为空，请检查环境变量设置')
+			console.error('ERROR', 'Failed to create or connect to search engine cluster: ELASTICSEARCH_ADMIN_PASSWORD is empty, please check environment variable settings')
 			process.exit()
 		}
 		if (!ELASTICSEARCH_CLUSTER_HOST) {
-			console.error('ERROR', '创建或连接搜索引擎集群失败：ELASTICSEARCH_CLUSTER_HOST 为空，请检查环境变量设置')
+			console.error('ERROR', 'Failed to create or connect to search engine cluster: ELASTICSEARCH_CLUSTER_HOST is empty, please check environment variable settings')
 			process.exit()
 		}
 
 		const ELASTICSEARCH_CLUSTER_HOST_LIST = ELASTICSEARCH_CLUSTER_HOST?.split(',')?.map(host => `${ELASTICSEARCH_PROTOCOL}://${host}`)
 
 		if (!ELASTICSEARCH_CLUSTER_HOST_LIST || ELASTICSEARCH_CLUSTER_HOST_LIST?.length <= 0) {
-			console.error('ERROR', '创建或连接搜索引擎集群失败：ELASTICSEARCH_CLUSTER_HOST_LIST 为空，请检查环境变量设置，集群地址必须由以逗号分隔的集群地址和端口号组成，例：XXX.XXX.XXX.XXX:32000,YYY.YYY.YYY.YYY:32000,ZZZ.ZZZ.ZZZ.ZZZ:32000')
+			console.error('ERROR', 'Failed to create or connect to search engine cluster: ELASTICSEARCH_CLUSTER_HOST_LIST is empty, please check environment variable settings, cluster address must consist of cluster addresses and port numbers separated by commas, e.g.: XXX.XXX.XXX.XXX:32000,YYY.YYY.YYY.YYY:32000,ZZZ.ZZZ.ZZZ.ZZZ:32000')
 			process.exit()
 		}
 
@@ -41,14 +41,14 @@ export const connectElasticSearchCluster = async (): Promise<Client> => {
 				password: ELASTICSEARCH_ADMIN_PASSWORD,
 			},
 			tls: {
-				rejectUnauthorized: false, // 这将忽略 SSL 证书验证
+				rejectUnauthorized: false, // This will ignore SSL certificate validation
 			},
 		})
 
 		try {
 			await client.ping()
 		} catch (error) {
-			console.error('ERROR', '创建或连接搜索引擎集群失败：PING 返回了一个错误的结果：', error)
+			console.error('ERROR', 'Failed to create or connect to search engine cluster: PING returned an error result:', error)
 			process.exit()
 		}
 
@@ -58,32 +58,32 @@ export const connectElasticSearchCluster = async (): Promise<Client> => {
 			console.info('Elasticsearch Cluster Connect successfully!')
 			console.info(`cluster_name: ${elasticsearchClusterInfoResult?.cluster_name}, cluster_uuid: ${elasticsearchClusterInfoResult?.cluster_uuid}, current_connect_name: ${elasticsearchClusterInfoResult?.name}, version: ${elasticsearchClusterInfoResult?.version?.number}, tagline: ${elasticsearchClusterInfoResult?.tagline}`)
 		} catch (error) {
-			console.error('ERROR', '创建或连接搜索引擎集群失败：INFO 返回了一个错误的结果：', error)
+			console.error('ERROR', 'Failed to create or connect to search engine cluster: INFO returned an error result:', error)
 			process.exit()
 		}
 
 		return client
 	} catch (error) {
-		console.error('ERROR', '创建搜索引擎连接失败：connectElasticSearchCluster 意外终止：', error)
+		console.error('ERROR', 'Failed to create search engine connection: connectElasticSearchCluster unexpectedly terminated:', error)
 		process.exit()
 	}
 }
 
 /**
- * 从数据库集群中删除文档
- * @param client Elasticsearch 连接，应存放在 ctx 中
- * @param indexName 索引的名字，该字段应当与 schema 存放于同一个对象中（这样 schema 和 indexName 构成了绑定关系）
- * @param conditions 删除数据的条件
- * @returns 删除数据的结果，成功返回 true，失败返回 false
+ * Delete documents from database cluster
+ * @param client Elasticsearch connection, should be stored in ctx
+ * @param indexName Index name, this field should be stored in the same object as schema (so schema and indexName form a binding relationship)
+ * @param conditions Conditions for deleting data
+ * @returns Result of deleting data, returns true on success, false on failure
  */
 export const deleteDataFromElasticsearchCluster = async (client: Client, indexName: string, conditions: Record<string, string | number>): Promise<boolean> => {
 	try {
-		// 构建 bool 查询条件
+		// Build bool query conditions
 		const mustConditions = Object.keys(conditions).map(field => ({
 			match: { [field]: conditions[field] },
 		}))
 
-		// 搜索满足条件的文档
+		// Search for documents matching the conditions
 		const searchResponse = await client.search({
 			index: indexName,
 			body: {
@@ -95,9 +95,9 @@ export const deleteDataFromElasticsearchCluster = async (client: Client, indexNa
 			},
 		})
 
-		// 确保响应中包含 hits
+		// Ensure response contains hits
 		if (searchResponse.hits && searchResponse.hits.hits) {
-			// 遍历搜索结果并删除每个文档
+			// Iterate through search results and delete each document
 			const hits = searchResponse.hits.hits
 			for (const hit of hits) {
 				await client.delete({
@@ -111,19 +111,19 @@ export const deleteDataFromElasticsearchCluster = async (client: Client, indexNa
 			return false
 		}
 	} catch (error) {
-		console.error('ERROR', '在搜索引擎中删除数据时出错，未知原因', error)
+		console.error('ERROR', 'Error occurred while deleting data in search engine, unknown reason', error)
 		return false
 	}
 }
 
 /**
- * 向 Elasticsearch 集群插入数据，并刷新（如果 refreshFlag 为 true 则立即刷新，但默认为 false，等待集群自动刷新）
- * @param client Elasticsearch 连接，应存放在 ctx 中
- * @param indexName 索引的名字，该字段应当与 schema 存放于同一个对象中（这样 schema 和 indexName 构成了绑定关系）
- * @param schema 要插入的索引的 schema （在 Elasticsearch 中应该叫做：索引模板），主要功能是只是提供了泛型 T 并限定了 data 的类型，该字段应当与 indexName 存放于同一个对象中（这样 schema 和 indexName 构成了绑定关系）
- * @param data 要插入的数据，类型是根据 schema 的类型泛型推算而来
- * @param refreshFlag 在插入数据后是否立即刷新搜索（在高并发场景下不建议立即刷新搜索）
- * @returns 插入数据的结果，如果成功则返回 {success: true}，否则 {success: false}
+ * Insert data into Elasticsearch cluster and refresh (if refreshFlag is true, refresh immediately, but default is false, wait for cluster to refresh automatically)
+ * @param client Elasticsearch connection, should be stored in ctx
+ * @param indexName Index name, this field should be stored in the same object as schema (so schema and indexName form a binding relationship)
+ * @param schema Schema of the index to be inserted (in Elasticsearch it should be called: index template), main function is to provide generic T and limit the type of data, this field should be stored in the same object as indexName (so schema and indexName form a binding relationship)
+ * @param data Data to be inserted, type is inferred from schema's generic type
+ * @param refreshFlag Whether to refresh search immediately after inserting data (not recommended to refresh search immediately in high concurrency scenarios)
+ * @returns Result of inserting data, returns {success: true} on success, otherwise {success: false}
  */
 export const insertData2ElasticsearchCluster = async <T>(client: Client, indexName: string, schema: T, data: EsSchema2TsType<T>, refreshFlag: boolean = false): Promise<EsResultType<EsSchema2TsType<T>>> => {
 	try {
@@ -135,46 +135,46 @@ export const insertData2ElasticsearchCluster = async <T>(client: Client, indexNa
 				})
 				if (indexResult && indexResult.result) {
 					if (refreshFlag) {
-						// 在索引（v.）数据之后可以手动执行 refresh 才能显示在搜索结果里，如果不手动执行，集群会每隔一段时间自动执行一次
+						// After indexing (v.) data, you can manually execute refresh to display in search results. If not manually executed, the cluster will automatically execute once every interval
 						try {
 							const refreshResult = await client.indices.refresh({ index: indexName })
 							if (refreshResult) {
-								return { success: true, message: '向 Elasticsearch 插入数据成功，手动刷新搜索成功', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
+								return { success: true, message: 'Successfully inserted data into Elasticsearch, manual search refresh successful', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
 							} else {
-								return { success: true, message: '向 Elasticsearch 插入数据成功，但刷新搜索的结果为空', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
+								return { success: true, message: 'Successfully inserted data into Elasticsearch, but search refresh result is empty', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
 							}
 						} catch (error) {
-							console.warn('WARN', 'WARNING', '向 Elasticsearch 插入数据成功，但刷新搜索时出错', error)
-							return { success: true, message: '向 Elasticsearch 插入数据成功，但刷新搜索时出错', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
+							console.warn('WARN', 'WARNING', 'Successfully inserted data into Elasticsearch, but error occurred during search refresh', error)
+							return { success: true, message: 'Successfully inserted data into Elasticsearch, but error occurred during search refresh', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
 						}
 					} else {
-						return { success: true, message: '向 Elasticsearch 插入数据成功，请等待自动刷新', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
+						return { success: true, message: 'Successfully inserted data into Elasticsearch, please wait for automatic refresh', result: [indexResult.result] as unknown as EsSchema2TsType<T>[] }
 					}
 				} else {
-					console.error('ERROR', '向 Elasticsearch 插入数据时出错，索引（v.）数据的返回结果异常')
-					return { success: false, message: '向 Elasticsearch 插入数据时出错，索引（v.）数据的返回结果异常' }
+					console.error('ERROR', 'Error occurred while inserting data into Elasticsearch, index (v.) data return result is abnormal')
+					return { success: false, message: 'Error occurred while inserting data into Elasticsearch, index (v.) data return result is abnormal' }
 				}
 			} catch (error) {
-				console.error('ERROR', '向 Elasticsearch 插入数据时出错，索引（v.）数据时出错', error)
-				return { success: false, message: '向 Elasticsearch 插入数据时出错，索引（v.）数据时出错' }
+				console.error('ERROR', 'Error occurred while inserting data into Elasticsearch, error occurred while indexing (v.) data', error)
+				return { success: false, message: 'Error occurred while inserting data into Elasticsearch, error occurred while indexing (v.) data' }
 			}
 		} else {
-			console.error('ERROR', '向 Elasticsearch 插入数据时出错，schema、data、indexName 或 client 为空')
-			return { success: false, message: '向 Elasticsearch 插入数据时出错，必要的数据为空' }
+			console.error('ERROR', 'Error occurred while inserting data into Elasticsearch, schema, data, indexName, or client is empty')
+			return { success: false, message: 'Error occurred while inserting data into Elasticsearch, necessary data is empty' }
 		}
 	} catch (error) {
-		console.error('ERROR', '向 Elasticsearch 插入数据时出错，未知异常', error)
-		return { success: false, message: '向 Elasticsearch 插入数据时出错，未知异常' }
+		console.error('ERROR', 'Error occurred while inserting data into Elasticsearch, unknown exception', error)
+		return { success: false, message: 'Error occurred while inserting data into Elasticsearch, unknown exception' }
 	}
 }
 
 /**
- * 从 Elasticsearch 集群搜索数据
- * @param client Elasticsearch 连接，应存放在 ctx 中
- * @param indexName 索引的名字，该字段应当与 schema 存放于同一个对象中（这样 schema 和 indexName 构成了绑定关系）
- * @param schema 要插入的索引的 schema （在 Elasticsearch 中应该叫做：索引模板），主要功能是只是提供了泛型 T 并限定了 data 的类型，该字段应当与 indexName 存放于同一个对象中（这样 schema 和 indexName 构成了绑定关系）
- * @param query 查询的参数，类似于数据库的 WHERE，但 Elasticsearch 有一套自己的逻辑，建议参考官方文档。
- * @returns 查询的返回结果
+ * Search data from Elasticsearch cluster
+ * @param client Elasticsearch connection, should be stored in ctx
+ * @param indexName Index name, this field should be stored in the same object as schema (so schema and indexName form a binding relationship)
+ * @param schema Schema of the index to be inserted (in Elasticsearch it should be called: index template), main function is to provide generic T and limit the type of data, this field should be stored in the same object as indexName (so schema and indexName form a binding relationship)
+ * @param query Query parameters, similar to WHERE in database, but Elasticsearch has its own logic, recommend referring to official documentation.
+ * @returns Query return result
  */
 export const searchDataFromElasticsearchCluster = async <T>(client: Client, indexName: string, schema: T, query: any): Promise<EsResultType<EsSchema2TsType<T>>> => {
 	try {
@@ -187,25 +187,25 @@ export const searchDataFromElasticsearchCluster = async <T>(client: Client, inde
 				if (result && !isEmptyObject(result) && !result.timed_out) {
 					const hits = result?.hits?.hits
 					if (hits?.length && hits.length > 0) {
-						return { success: true, message: '在 Elasticsearch 搜索成功', result: hits.map(hit => hit._source as EsSchema2TsType<T>) }
+						return { success: true, message: 'Search successful in Elasticsearch', result: hits.map(hit => hit._source as EsSchema2TsType<T>) }
 					} else {
-						return { success: true, message: '在 Elasticsearch 搜索成功，但没有结果', result: [] }
+						return { success: true, message: 'Search successful in Elasticsearch, but no results', result: [] }
 					}
 				} else {
-					console.error('ERROR', '在 Elasticsearch 搜索数据失败，返回结果为空或异常')
-					return { success: false, message: '在 Elasticsearch 搜索数据失败，返回结果为空或异常' }
+					console.error('ERROR', 'Failed to search data in Elasticsearch, return result is empty or abnormal')
+					return { success: false, message: 'Failed to search data in Elasticsearch, return result is empty or abnormal' }
 				}
 			} catch (error) {
-				console.error('ERROR', '在 Elasticsearch 搜索数据失败，搜索数据时出错', error)
-				return { success: false, message: '在 Elasticsearch 搜索数据失败，搜索数据时出错' }
+				console.error('ERROR', 'Failed to search data in Elasticsearch, error occurred while searching data', error)
+				return { success: false, message: 'Failed to search data in Elasticsearch, error occurred while searching data' }
 			}
 		} else {
-			console.error('ERROR', '在 Elasticsearch 搜索数据失败，必要的参数为空')
-			return { success: false, message: '在 Elasticsearch 搜索数据失败，必要的参数为空' }
+			console.error('ERROR', 'Failed to search data in Elasticsearch, necessary parameters are empty')
+			return { success: false, message: 'Failed to search data in Elasticsearch, necessary parameters are empty' }
 		}
 	} catch (error) {
-		console.error('ERROR', '在 Elasticsearch 搜索数据失败，未知异常', error)
-		return { success: false, message: '在 Elasticsearch 搜索数据失败，未知异常' }
+		console.error('ERROR', 'Failed to search data in Elasticsearch, unknown exception', error)
+		return { success: false, message: 'Failed to search data in Elasticsearch, unknown exception' }
 	}
 }
 

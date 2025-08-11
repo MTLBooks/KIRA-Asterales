@@ -1,41 +1,41 @@
 import { Types } from 'mongoose'
 
 /**
- * 数据操作的结果列表（结果为对象数组）
+ * Data operation result list (result is an array of objects)
  */
 export type DbPoolResultsType<T> = {
-	/** 操作是否成功 */
+	/** Whether the operation was successful */
 	success: boolean;
-	/** 附加消息 */
+	/** Additional message */
 	message: string;
-	/** 错误信息（如果有的话） */
+	/** Error information (if any) */
 	error?: unknown;
-	/** 数据操作的结果数组（如果有的话） */
+	/** Data operation result array (if any) */
 	result?: T[];
 }
 
 /**
- * 数据操作的结果（结果为对象）
+ * Data operation result (result is an object)
  */
 export type DbPoolResultType<T> = {
-	/** 操作是否成功 */
+	/** Whether the operation was successful */
 	success: boolean;
-	/** 附加消息 */
+	/** Additional message */
 	message: string;
-	/** 错误信息（如果有的话） */
+	/** Error information (if any) */
 	error?: unknown;
-	/** 数据操作的结果对象（如果有的话） */
+	/** Data operation result object (if any) */
 	result?: T;
 }
 
 /**
- * success 更新操作是否成功
- * message 附加消息
- * error 错误信息（如果有的话）
- * result 更新操作的结果（如果有的话）
-	* acknowledged 是否更新成功
-	* matchedCount 匹配到的数量（在更新操作之前，匹配到多少条应该被更新的数据）
-	* modifiedCount 实际更新数量（在更新操作之后，实际更新的数据）
+ * success Whether the update operation was successful
+ * message Additional message
+ * error Error information (if any)
+ * result Update operation result (if any)
+	* acknowledged Whether the update was successful
+	* matchedCount Number of matches (before the update operation, how many data should be updated)
+	* modifiedCount Actual update count (after the update operation, actually updated data)
  */
 export type UpdateResultType = {
 	success: boolean;
@@ -49,48 +49,48 @@ export type UpdateResultType = {
 }
 
 /**
- * MongoDB 可用的查询条件
+ * MongoDB available query conditions
  */
 type MongoDBConditionsType<T> = {
-	$gt?: number; // 大于
-	$gte?: number; // 大于等于
-	$lt?: number; // 小于
-	$lte?: number; // 小于等于
-	$ne?: number; // 不等于
+	$gt?: number; // Greater than
+	$gte?: number; // Greater than or equal
+	$lt?: number; // Less than
+	$lte?: number; // Less than or equal
+	$ne?: number; // Not equal
 
-	$and?: QueryType<T>[]; // 与
-	$or?: QueryType<T>[]; // 或
-	$not?: QueryType<T>; // 非
+	$and?: QueryType<T>[]; // And
+	$or?: QueryType<T>[]; // Or
+	$not?: QueryType<T>; // Not
 
-	$exists?: boolean; // 属性是否存在，例： { 'phone.number': { $exists: true } } 查找所有包含 phone.number 的文档
-	$type?: string; // 匹配字段的类型，例： { age: { $type: 'number' } }
+	$exists?: boolean; // Whether the property exists, e.g.: { 'phone.number': { $exists: true } } Find all documents containing phone.number
+	$type?: string; // Match field type, e.g.: { age: { $type: 'number' } }
 
-	$in?: unknown[]; // 字段值匹配数组中的任何一个值，例： { status: { $in: ['A', 'B'] } }
-	$nin?: unknown[]; // 字段值不匹配数组中的任何一个值
-	$all?: unknown[]; //  数组字段包含所有指定的元素，例： { tags: { $all: ['tech', 'health'] } }
-	$size?: number; // 数组大小，例： { tags: { $size: 3 } }
+	$in?: unknown[]; // Field value matches any value in the array, e.g.: { status: { $in: ['A', 'B'] } }
+	$nin?: unknown[]; // Field value does not match any value in the array
+	$all?: unknown[]; // Array field contains all specified elements, e.g.: { tags: { $all: ['tech', 'health'] } }
+	$size?: number; // Array size, e.g.: { tags: { $size: 3 } }
 
-	$elemMatch?: MongoDBConditionsType<T>; // 确保数据库中的数组至少有一个元素匹配提供的条件
+	$elemMatch?: MongoDBConditionsType<T>; // Ensure at least one element in the database array matches the provided conditions
 
-	$regex?: RegExp; // 正则表达式
+	$regex?: RegExp; // Regular expression
 }
 
-// 数据库 Query，相当于 SQL 中的 WHERE
+// Database Query, equivalent to WHERE in SQL
 export type QueryType<T> = {
 	[K in keyof T]?: T[K] extends Types.DocumentArray<unknown> ? MongoDBConditionsType<T> : T[K] | MongoDBConditionsType<T>;
 } & Record< string, boolean | string | number | MongoDBConditionsType<T> >
 
-// 数据库 Update，相当于 SQL UPDATE 中的 SET
+// Database Update, equivalent to SET in SQL UPDATE
 export type UpdateType<T> = {
 	[K in keyof T]?: T[K];
 }
 
-// 数据库 Select 投影，相当于 SQL 中的 SELECT
+// Database Select projection, equivalent to SELECT in SQL
 export type SelectType<T> = {
 	[K in keyof T]?: 1;
 }
 
-// 数据库排序，相当于 SQL 中的 ORDER BY
+// Database sorting, equivalent to ORDER BY in SQL
 export type OrderByType<T> = {
 	[K in keyof T]?: 1 | -1;
 }

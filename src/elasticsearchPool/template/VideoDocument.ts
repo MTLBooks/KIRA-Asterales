@@ -1,56 +1,56 @@
 const VideoTagNameDocument = {
-	/** TAG 名称 - 非空 */
+	/** TAG name - non-null */
 	name: { type: String, required: true as const },
-	/** 是否为该语言默认名 - 非空 */
+	/** Whether it's the default name for this language - non-null */
 	isDefault: { type: Boolean, required: true as const },
-	/** 是否为 TAG 原名 - 非空 */
+	/** Whether it's the original TAG name - non-null */
 	isOriginalTagName: { type: Boolean, required: false as const },
 }
 
 /**
- * 不同语言所对应的 TAG 名
+ * TAG names corresponding to different languages
  */
 const MultilingualVideoTagNameDocument = {
-	/** TAG 的语言 - 非空，原则上应该唯一 // WARN: 无法指定指定子文档的唯一索引，只能在业务上避免并做校验 */
+	/** TAG language - non-null, should be unique in principle // WARN: Cannot specify unique index for sub-documents, can only avoid in business logic and do validation */
 	lang: { type: String, required: true as const },
-	/** 不同语言所对应的 TAG 名 */
+	/** TAG names corresponding to different languages */
 	tagName: { type: [VideoTagNameDocument], required: true as const },
 }
 
 /**
- * 视频 TAG 数据
+ * Video TAG data
  */
 const VideoTagDocument = {
-	/** Elasticsearch 索引模板 */
+	/** Elasticsearch index template */
 	schema: {
-		/** TAG ID - 非空，唯一 */
+		/** TAG ID - non-null, unique */
 		tagId: { type: Number, required: true as const },
-		/** 不同语言所对应的 TAG 名 */
+		/** TAG names corresponding to different languages */
 		tagNameList: { type: [MultilingualVideoTagNameDocument], required: true as const },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true as const },
 	},
-	/** Elasticsearch 索引名 */
+	/** Elasticsearch index name */
 	indexName: 'search-kirakira-video-tag-elasticsearch',
 }
 
 /**
- * 视频数据
+ * Video data
  */
 export const VideoDocument = {
-	/** Elasticsearch 索引模板 */
+	/** Elasticsearch index template */
 	schema: {
-		/** 视频标题 - 非空 */
+		/** Video title - non-null */
 		title: { type: String, required: true as const },
-		/** 视频描述 */
+		/** Video description */
 		description: { type: String, required: false as const },
-		/** KVID 视频 ID - 非空 */
+		/** KVID video ID - non-null */
 		kvid: { type: Number, required: true as const },
-		/** 视频分区 - 非空 */
+		/** Video category - non-null */
 		videoCategory: { type: String, required: true as const },
-		/** 视频 TAG - 非空 */
+		/** Video TAG - non-null */
 		videoTagList: { type: [VideoTagDocument], required: true as const },
 	},
-	/** Elasticsearch 索引名 */
+	/** Elasticsearch index name */
 	indexName: 'search-kirakira-video-elasticsearch',
 }

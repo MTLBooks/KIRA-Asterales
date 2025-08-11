@@ -1,10 +1,10 @@
 import crypto from 'crypto'
 
 /**
- * 生成不可预测的随机字符串，性能较差
+ * Generate unpredictable random string, poor performance
  *
- * @param length 生成的随机字符串的长度
- * @returns 随机字符串
+ * @param length Length of the generated random string
+ * @returns Random string
  */
 export const generateSecureRandomString = (length: number): string => {
 	try {
@@ -33,10 +33,10 @@ export const generateSecureRandomString = (length: number): string => {
 }
 
 /**
- * 生成可能被预测的随机字符串，性能较好 // WARN
+ * Generate potentially predictable random string, better performance // WARN
  *
- * @param length 生成的随机字符串的长度
- * @returns 随机字符串
+ * @param length Length of the generated random string
+ * @returns Random string
  */
 export const generateRandomString = (length: number): string => {
 	try {
@@ -59,13 +59,13 @@ export const generateRandomString = (length: number): string => {
 }
 
 /**
- * 返回一个区间中的随机整数（包括区间两端的数）
- * @param num1 第一个数
- * @param num2 第二个数
- * @returns 两个数区间的一个随机整数
+ * Return a random integer in a range (including both ends of the range)
+ * @param num1 First number
+ * @param num2 Second number
+ * @returns A random integer in the range of the two numbers
  */
 export const getRandomNumberInRange = (num1: number, num2: number): number => {
-	// 如果 num1 大于 num2，交换它们的值
+	// If num1 is greater than num2, swap their values
 	if (num1 > num2) {
 		[num1, num2] = [num2, num1]
 	}
@@ -73,24 +73,24 @@ export const getRandomNumberInRange = (num1: number, num2: number): number => {
 }
 
 /**
- * 生成不可预测的数字验证码
- * @param 验证码的位数
- * @returns 不可预测的数字验证码
+ * Generate unpredictable numeric verification code
+ * @param length Number of digits in the verification code
+ * @returns Unpredictable numeric verification code
  */
 export const generateSecureVerificationNumberCode = (length: number): string => {
-	const buffer = crypto.randomBytes(length) // 生成 n 个随机字节
-	const code = Array.from(buffer, byte => (byte % 10).toString()).join('') // 从随机字节求模转化为数字
+	const buffer = crypto.randomBytes(length) // Generate n random bytes
+	const code = Array.from(buffer, byte => (byte % 10).toString()).join('') // Convert random bytes to numbers using modulo
 	return code
 }
 
 /**
- * 根据传入的长度和字符集，生成不可预测的随机字符串
- * @param length 随机字符串的位数
- * @param charset 随机字符串的字符集
- * @returns 不可预测的随机字符串
+ * Generate unpredictable random string based on input length and character set
+ * @param length Number of digits in the random string
+ * @param charset Character set for the random string
+ * @returns Unpredictable random string
  */
 export const generateSecureVerificationStringCode = (length: number, charset: string): string => {
-	const buffer = crypto.randomBytes(length) // 生成 n 个随机字节
-	const code = Array.from(buffer, byte => charset[byte % charset.length]).join('') // 从随机字节映射到字符集合
+	const buffer = crypto.randomBytes(length) // Generate n random bytes
+	const code = Array.from(buffer, byte => charset[byte % charset.length]).join('') // Map random bytes to character set
 	return code
 }

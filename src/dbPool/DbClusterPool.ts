@@ -5,28 +5,28 @@ import { SequenceValueSchema } from './schema/SequenceSchema.js'
 import { UserInfoSchema, UserTotpAuthenticatorSchema } from './schema/UserSchema.js'
 
 /**
- * 虚拟属性，用于关联查询
+ * Virtual properties for association queries
  *
- * @example 定义虚拟属性 'uploader', 通过用户名来进行关联（可以理解为 SQL JOIN）
+ * @example Define virtual property 'uploader' to associate through username (can be understood as SQL JOIN)
  * videoSchema.virtual('uploader', {
- *   ref: 'User', // 关联到 User 模型
- *   localField: 'uploaderUsername', // Video 模型中用于关联的字段
- *   foreignField: 'username', // User 模型中用于关联的字段
- *   justOne: true // 只返回一个用户文档
+ *   ref: 'User', // Associate to User model
+ *   localField: 'uploaderUsername', // Field in Video model used for association
+ *   foreignField: 'username', // Field in User model used for association
+ *   justOne: true // Only return one user document
  * });
  * const Video = mongoose.model('Video', videoSchema);
  *
- * // 在查询时使用 populate 方法来查询这个虚拟属性
+ * // Use populate method to query this virtual property
  * Video.find().populate('uploader')
  *
  */
 type MongoDBVirtualSettingType<T, P> = {
-	name: string; // 虚拟属性名
+	name: string; // Virtual property name
 	options: {
-		ref: string; // 关联的子模型
-		localField: Extract<keyof T, string>; // 父模型中用于关联的字段
-		foreignField: Extract<keyof P, string>; // 子模型中用于关联的字段
-		justOne: boolean; // 如果为 true 则只一条数据关联一个文档（即使有很多符合条件的）
+		ref: string; // Associated child model
+		localField: Extract<keyof T, string>; // Field in parent model used for association
+		foreignField: Extract<keyof P, string>; // Field in child model used for association
+		justOne: boolean; // If true, only one piece of data associates with one document (even if there are many matching conditions)
 	};
 	// model: {
 	// 	modelName: string;
@@ -34,31 +34,31 @@ type MongoDBVirtualSettingType<T, P> = {
 	// };
 }
 
-/** 基础 Mongoose 选项 */
+/** Basic Mongoose options */
 type BaseDbPoolOptions = {
-		/** 事务的 session */
+		/** Transaction session */
 		session?: ClientSession;
-		/** 读偏好，会覆盖创建连接时的读偏好，当 session 不为空时 readPreference 需要设为 primary（通常会自动设定） */
+		/** Read preference, will override the read preference set when creating the connection, when session is not empty, readPreference needs to be set to primary (usually set automatically) */
 		readPreference?: ReadPreferenceMode;
 }
 
-/** 定义一个不可能在任何类型中出现的独特类型作为标识 */
-type DbPoolOptionsMarkerType = { __FLAG_DB_POOL_OPTIONS_MARKER_TYPE_F6WEISS8900SWEDE5URV3KCAL98HBY8PG5JP4Y5XK1OOXXNBWJ70NVR4SURCOAT3SIB9AXML3Y4LXRCWNOGDH7CRKGNUIGJ7O5__: never } // 定义一个不可能在任何类型中出现的独特类型作为标识
+/** Define a unique type that cannot appear in any type as an identifier */
+type DbPoolOptionsMarkerType = { __FLAG_DB_POOL_OPTIONS_MARKER_TYPE_F6WEISS8900SWEDE5URV3KCAL98HBY8PG5JP4Y5XK1OOXXNBWJ70NVR4SURCOAT3SIB9AXML3Y4LXRCWNOGDH7CRKGNUIGJ7O5__: never } // Define a unique type that cannot appear in any type as an identifier
 
-/** Mongoose 选项 */
+/** Mongoose options */
 export type DbPoolOptions<T = unknown, P = DbPoolOptionsMarkerType> =
 	P extends DbPoolOptionsMarkerType ?
 		BaseDbPoolOptions
 	:
 		BaseDbPoolOptions & {
-			/** 虚拟属性，用于关联查询 // WARN 不要设置，除非你知道你在做什么！ */
+			/** Virtual properties for association queries // WARN Don't set unless you know what you're doing! */
 			virtual?: MongoDBVirtualSettingType<T, P>;
-			/** populate 方法中关联的虚拟属性名，用于关联查询 // WARN 不要设置，除非你知道你在做什么！ */
+			/** Virtual property name associated in populate method, for association queries // WARN Don't set unless you know what you're doing! */
 			populate?: MongoDBVirtualSettingType<T, P>['name'];
 		}
 
 /**
- * 连接 MongoDB 复制集，这个方法应当在系统初始化时调用
+ * Connect to MongoDB replica set, this method should be called during system initialization
  */
 export const connectMongoDBCluster = async (): Promise<void> => {
 	try {
@@ -72,19 +72,19 @@ export const connectMongoDBCluster = async (): Promise<void> => {
 		const databasePassword = process.env.MONGODB_PASSWORD
 
 		if (!databaseHost) {
-			console.error('ERROR', '创建数据库连接失败， databaseHost 为空')
+			console.error('ERROR', 'Failed to create database connection, databaseHost is empty')
 			process.exit()
 		}
 		if (!databaseName) {
-			console.error('ERROR', '创建数据库连接失败， databaseName 为空')
+			console.error('ERROR', 'Failed to create database connection, databaseName is empty')
 			process.exit()
 		}
 		if (!databaseUsername) {
-			console.error('ERROR', '创建数据库连接失败， databaseUsername 为空')
+			console.error('ERROR', 'Failed to create database connection, databaseUsername is empty')
 			process.exit()
 		}
 		if (!databasePassword) {
-			console.error('ERROR', '创建数据库连接失败， databasePassword 为空')
+			console.error('ERROR', 'Failed to create database connection, databasePassword is empty')
 			process.exit()
 		}
 
@@ -92,7 +92,7 @@ export const connectMongoDBCluster = async (): Promise<void> => {
 		const mongoURL = `${protocol}://${databaseUsername}:${databasePassword}@${databaseHost}/${databaseName}?authSource=admin`
 
 		const connectionOptions = {
-			readPreference: ReadPreferenceMode.secondaryPreferred, // 默认的读偏好为优先从副本中读取，在某些情况下会覆盖这个设置，比如说使用事务时会优先从主读取。
+			readPreference: ReadPreferenceMode.secondaryPreferred, // Default read preference is to read from replica first, this setting will be overridden in certain cases, such as when using transactions, it will prioritize reading from primary.
 		}
 
 		if (databaseProtocol === 'mongodb+srv' && !databaseTlsCa) {
@@ -109,44 +109,44 @@ export const connectMongoDBCluster = async (): Promise<void> => {
 		}
 
 		try {
-			mongoose.set('strictQuery', true) // 设为 true 的话，如果在查询时传入了 schema 定义的字段以外的字段，则会忽略这些字段
+			mongoose.set('strictQuery', true) // If set to true, if fields other than those defined in the schema are passed during queries, these fields will be ignored
 			await mongoose.connect(mongoURL, connectionOptions)
 
-			// 在此处放置需要提前注册的 Model
-			// 用户信息应当提前注册才能让其他表使用 Mongoose 的虚拟属性来关联用户信息数据
+			// Place models that need to be registered early here
+			// User info should be registered early so that other tables can use Mongoose's virtual properties to associate user info data
 			mongoose.model(UserInfoSchema.collectionName, UserInfoSchema.schemaInstance)
-			// 用户 TOTP 认证集合需要提前注册，否则执行事务时会出错。
+			// User TOTP authentication collection needs to be registered early, otherwise executing transactions will cause errors.
 			mongoose.model(UserTotpAuthenticatorSchema.collectionName, UserTotpAuthenticatorSchema.schemaInstance)
 
 			console.info()
 			console.info('MongoDB Cluster Connect successfully!')
 		} catch (error) {
-			console.error('ERROR', '创建数据库连接失败：', error)
+			console.error('ERROR', 'Failed to create database connection:', error)
 			process.exit()
 		}
 	} catch (error) {
-		console.error('ERROR', '创建数据库连接失败：connectMongoDBCluster 意外终止：', error)
+		console.error('ERROR', 'Failed to create database connection: connectMongoDBCluster unexpectedly terminated:', error)
 		process.exit()
 	}
 }
 
 /**
- * 向数据库中插入数据
- * @param data 被插入的数据
- * @param schema MongoDB Schema 对象
- * @param collectionName 数据即将插入的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名）
- * @param options 设置项
- * @returns 插入数据的状态和结果
+ * Insert data into database
+ * @param data Data to be inserted
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection where data will be inserted (inputting a singular noun will automatically create a collection name in plural form)
+ * @param options Settings
+ * @returns Status and result of data insertion
  */
 export const insertData2MongoDB = async <T, P = DbPoolOptionsMarkerType>(data: T, schema: Schema, collectionName: string, options?: DbPoolOptions<T, P>): Promise< DbPoolResultsType<T & {_id: string}> > => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
 
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -156,34 +156,34 @@ export const insertData2MongoDB = async <T, P = DbPoolOptionsMarkerType>(data: T
 		const model = new mongoModel(data)
 		try {
 			const result = await model.save(options) as unknown as T & {_id: string}
-			return { success: true, message: '数据插入成功', result: [result] }
+			return { success: true, message: 'Data insertion successful', result: [result] }
 		} catch (error) {
-			console.error('ERROR', '数据插入失败：', error)
-			throw { success: false, message: '数据插入失败', error }
+			console.error('ERROR', 'Data insertion failed:', error)
+			throw { success: false, message: 'Data insertion failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', 'insertData2MongoDB 发生错误')
-		throw { success: false, message: '数据插入失败，insertData2MongoDB 中发生错误：', error }
+		console.error('ERROR', 'Error occurred in insertData2MongoDB')
+		throw { success: false, message: 'Data insertion failed, error occurred in insertData2MongoDB:', error }
 	}
 }
 
 /**
- * 在 MongoDB 数据库中删除数据
- * @param where 查询条件
- * @param schema MongoDB Schema 对象
- * @param collectionName 删除数据时使用的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名）
- * @param options 设置项
- * @returns 删除状态和结果
+ * Delete data from MongoDB database
+ * @param where Query conditions
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection used when deleting data (inputting a singular noun will automatically create a collection name in plural form)
+ * @param options Settings
+ * @returns Deletion status and result
  */
 export const deleteDataFromMongoDB = async <T, P = DbPoolOptionsMarkerType>(where: QueryType<T>, schema: Schema<T>, collectionName: string, options?: DbPoolOptions<T, P>): Promise< DbPoolResultType<mongoose.mongo.DeleteResult> > => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
 
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -192,36 +192,36 @@ export const deleteDataFromMongoDB = async <T, P = DbPoolOptionsMarkerType>(wher
 
 		try {
 			const result = await mongoModel.deleteOne(where, options)
-			return { success: true, message: '数据查询成功', result }
+			return { success: true, message: 'Data query successful', result }
 		} catch (error) {
-			console.error('ERROR', '数据查询失败：', error)
-			throw { success: false, message: '数据查询失败', error }
+			console.error('ERROR', 'Data query failed:', error)
+			throw { success: false, message: 'Data query failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', 'selectDataFromMongoDB 发生错误')
-		throw { success: false, message: '数据查询失败，selectDataFromMongoDB 中发生错误：', error }
+		console.error('ERROR', 'Error occurred in selectDataFromMongoDB')
+		throw { success: false, message: 'Data query failed, error occurred in selectDataFromMongoDB:', error }
 	}
 }
 
 /**
- * 在 MongoDB 数据库中查找数据
- * @param where 查询条件
- * @param select 投影（可以理解为 SQL 的 SELECT 子句）
- * @param schema MongoDB Schema 对象
- * @param collectionName 查询数据时使用的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名）
- * @param options 设置项
- * @returns 查询状态和结果
+ * Find data in MongoDB database
+ * @param where Query conditions
+ * @param select Projection (can be understood as SQL's SELECT clause)
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection used when querying data (inputting a singular noun will automatically create a collection name in plural form)
+ * @param options Settings
+ * @returns Query status and result
  */
-/** 分页查询 */
+/** Pagination query */
 type Pagination = {
-	/** 当前在第几页 */
+	/** Current page number */
 	page: number;
-	/** 一页显示多少条 */
+	/** How many items to display per page */
 	pageSize: number;
 }
 export const selectDataFromMongoDB = async <T, P = DbPoolOptionsMarkerType>(where: QueryType<T>, select: SelectType<T>, schema: Schema<T>, collectionName: string, options?: DbPoolOptions<T, P>, sort?: OrderByType<T>, pagination?: Pagination): Promise< DbPoolResultsType<T> > => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
@@ -233,7 +233,7 @@ export const selectDataFromMongoDB = async <T, P = DbPoolOptionsMarkerType>(wher
 		}
 
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -254,28 +254,28 @@ export const selectDataFromMongoDB = async <T, P = DbPoolOptionsMarkerType>(wher
 			} else {
 				result = (await mongoModel.find(where, select, options).sort(sort).skip(skip).limit(pageSize)).map(results => results.toObject() as T)
 			}
-			return { success: true, message: '数据查询成功', result }
+			return { success: true, message: 'Data query successful', result }
 		} catch (error) {
-			console.error('ERROR', '数据查询失败：', error)
-			throw { success: false, message: '数据查询失败', error }
+			console.error('ERROR', 'Data query failed:', error)
+			throw { success: false, message: 'Data query failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', 'selectDataFromMongoDB 发生错误')
-		throw { success: false, message: '数据查询失败，selectDataFromMongoDB 中发生错误：', error }
+		console.error('ERROR', 'Error occurred in selectDataFromMongoDB')
+		throw { success: false, message: 'Data query failed, error occurred in selectDataFromMongoDB:', error }
 	}
 }
 
 /**
- * 在 MongoDB 数据库中使用 Aggregate 查找数据
- * @param schema MongoDB Schema 对象
- * @param collectionName 查询数据时使用的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名）
- * @param props 聚合查询的步骤
- * @returns 查询状态和结果
+ * Find data using Aggregate in MongoDB database
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection used when querying data (inputting a singular noun will automatically create a collection name in plural form)
+ * @param props Aggregation query steps
+ * @returns Query status and result
  */
 export const selectDataByAggregateFromMongoDB = async <T>(schema: Schema<T>, collectionName: string, props: PipelineStage[]): Promise< DbPoolResultsType<T> > => {
 	try {
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -284,35 +284,35 @@ export const selectDataByAggregateFromMongoDB = async <T>(schema: Schema<T>, col
 
 		try {
 			const result = (await mongoModel.aggregate(props)) as T[]
-			return { success: true, message: '数据聚合查询成功', result }
+			return { success: true, message: 'Data aggregation query successful', result }
 		} catch (error) {
-			console.error('ERROR', '数据聚合查询失败：', error)
-			throw { success: false, message: '数据聚合查询失败', error }
+			console.error('ERROR', 'Data aggregation query failed:', error)
+			throw { success: false, message: 'Data aggregation query failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', 'selectDataByAggregateFromMongoDB 发生错误')
-		throw { success: false, message: '数据聚合查询失败，selectDataByAggregateFromMongoDB 中发生错误：', error }
+		console.error('ERROR', 'Error occurred in selectDataByAggregateFromMongoDB')
+		throw { success: false, message: 'Data aggregation query failed, error occurred in selectDataByAggregateFromMongoDB:', error }
 	}
 }
 
 /**
- * 向数据库中更新数据
- * @param where 查询条件
- * @param update 需要更新的数据
- * @param schema MongoDB Schema 对象
- * @param collectionName 查询数据时使用的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名）
- * @param options 设置项
- * @returns 更新数据的结果
+ * Update data in database
+ * @param where Query conditions
+ * @param update Data to be updated
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection used when querying data (inputting a singular noun will automatically create a collection name in plural form)
+ * @param options Settings
+ * @returns Result of data update
  */
 export const updateData4MongoDB = async <T, P = DbPoolOptionsMarkerType>(where: QueryType<T>, update: UpdateType<T>, schema: Schema<T>, collectionName: string, options?: DbPoolOptions<T, P>): Promise<UpdateResultType> => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
 
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -325,44 +325,44 @@ export const updateData4MongoDB = async <T, P = DbPoolOptionsMarkerType>(where: 
 			const modifiedCount = updateResult.modifiedCount
 			if (acknowledged && matchedCount > 0) {
 				if (modifiedCount > 0) {
-					return { success: true, message: '数据更新成功', result: { acknowledged, matchedCount, modifiedCount } }
+					return { success: true, message: 'Data update successful', result: { acknowledged, matchedCount, modifiedCount } }
 				} else {
-					console.warn('WARN', 'WARNING', '已匹配到数据并尝试更新数据，但数据未（无需）更新，可能是因为数据更新前后的值相同', { where, update })
-					return { success: true, message: '尝试更新数据，但数据无需更新', result: { acknowledged, matchedCount, modifiedCount } }
+					console.warn('WARN', 'WARNING', 'Data was matched and update was attempted, but data was not (need not) updated, possibly because the data values before and after update are the same', { where, update })
+					return { success: true, message: 'Attempted to update data, but data need not be updated', result: { acknowledged, matchedCount, modifiedCount } }
 				}
 			} else {
-				console.warn('ERROR', '尝试更新数据，但更新失败，因为未匹配到到数据', { where, update })
-				return { success: false, message: '尝试更新数据，但更新失败，可能是未匹配到数据', result: { acknowledged, matchedCount, modifiedCount } }
+				console.warn('ERROR', 'Attempted to update data, but update failed because no data was matched', { where, update })
+				return { success: false, message: 'Attempted to update data, but update failed, possibly no data was matched', result: { acknowledged, matchedCount, modifiedCount } }
 			}
 		} catch (error) {
-			console.error('ERROR', '数据更新失败：', error, { where, update })
-			throw { success: false, message: '数据更新失败', error }
+			console.error('ERROR', 'Data update failed:', error, { where, update })
+			throw { success: false, message: 'Data update failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', '数据更新失败，未知错误')
-		throw { success: false, message: '数据更新失败，updateData4MongoDB 中发生错误：', error }
+		console.error('ERROR', 'Data update failed, unknown error')
+		throw { success: false, message: 'Data update failed, error occurred in updateData4MongoDB:', error }
 	}
 }
 
 /**
- * 从数据库中寻找一条匹配的数据并更新，然后返回更新后的结果 // WARN 请在业务中避免查询条件匹配到多条数据，如果匹配到多条数据，则只会更新第一条，造成数据不匹配！
- * @param where 查询条件 // WARN 请在业务中避免查询条件匹配到多条数据，如果匹配到多条数据，则只会更新第一条，造成数据不匹配！
- * @param update 需要更新的数据
- * @param schema MongoDB Schema 对象
- * @param collectionName 查询数据时使用的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名）
- * @param options 设置项
- * @param upsert 如果没有找到，是否创建（默认会创建）
- * @returns 更新后的数据
+ * Find one matching data from database and update it, then return the updated result // WARN Please avoid query conditions matching multiple data in business logic. If multiple data are matched, only the first one will be updated, causing data mismatch!
+ * @param where Query conditions // WARN Please avoid query conditions matching multiple data in business logic. If multiple data are matched, only the first one will be updated, causing data mismatch!
+ * @param update Data to be updated
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection used when querying data (inputting a singular noun will automatically create a collection name in plural form)
+ * @param options Settings
+ * @param upsert Whether to create if not found (default will create)
+ * @returns Updated data
  */
 export const findOneAndUpdateData4MongoDB = async <T, P = DbPoolOptionsMarkerType>(where: QueryType<T>, update: UpdateType<T>, schema: Schema<T>, collectionName: string, options?: DbPoolOptions<T, P>, upsert: boolean = true): Promise< DbPoolResultType<T> > => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
 
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -372,33 +372,33 @@ export const findOneAndUpdateData4MongoDB = async <T, P = DbPoolOptionsMarkerTyp
 			const updateResult = (await mongoModel.findOneAndUpdate(where, { $set: update }, { new: true, upsert, ...options }))?.toObject() as T
 
 			if (updateResult) {
-				return { success: true, message: '数据更新成功', result: updateResult }
+				return { success: true, message: 'Data update successful', result: updateResult }
 			} else {
-				console.warn('ERROR', '数据更新失败，没有找到返回结果', { where, update })
-				return { success: false, message: '数据更新失败，没有找到返回结果' }
+				console.warn('ERROR', 'Data update failed, no return result found', { where, update })
+				return { success: false, message: 'Data update failed, no return result found' }
 			}
 		} catch (error) {
-			console.error('ERROR', '数据更新失败：', error, { where, update })
-			throw { success: false, message: '数据更新失败', error }
+			console.error('ERROR', 'Data update failed:', error, { where, update })
+			throw { success: false, message: 'Data update failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', '数据更新失败，未知错误')
-		throw { success: false, message: '数据更新失败，findOneAndUpdateData4MongoDB 中发生错误：', error }
+		console.error('ERROR', 'Data update failed, unknown error')
+		throw { success: false, message: 'Data update failed, error occurred in findOneAndUpdateData4MongoDB:', error }
 	}
 }
 
 /**
- * 创建或获取自增序列的下一个值，并自增
- * // WARN 请调用 SequenceValueService 的 getNextSequenceValueEjectService 方法或 getNextSequenceValueService 方法来获取自增值，而不是直接调用 Pool 层
- * @param sequenceId 自增序列的 key
- * @param sequenceDefaultNumber 序列的初始值，默认：0，如果序列已创建，则无效，该值可以为负数
- * @parma sequenceStep 序列的步长，默认：1，每次调用该方法时可以指定不同的步长，该值可以为负数
- * @param options 设置项
- * @returns 查询状态和结果，应为自增序列的下一个值
+ * Create or get the next value of an auto-increment sequence and increment it
+ * // WARN Please call the getNextSequenceValueEjectService method or getNextSequenceValueService method of SequenceValueService to get the auto-increment value, rather than directly calling the Pool layer
+ * @param sequenceId Auto-increment sequence key
+ * @param sequenceDefaultNumber Initial value of the sequence, default: 0, if the sequence is already created, this is invalid, this value can be negative
+ * @param sequenceStep Step size of the sequence, default: 1, can specify different step size each time this method is called, this value can be negative
+ * @param options Settings
+ * @returns Query status and result, should be the next value of the auto-increment sequence
  */
 export const getNextSequenceValuePool = async (sequenceId: string, sequenceDefaultNumber: number = 0, sequenceStep: number = 1, options?: DbPoolOptions): Promise< DbPoolResultType<number> > => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
@@ -407,7 +407,7 @@ export const getNextSequenceValuePool = async (sequenceId: string, sequenceDefau
 		type Schema = InferSchemaType<typeof schemaInstance>
 		let mongoModel: Model<Schema>
 
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -418,54 +418,54 @@ export const getNextSequenceValuePool = async (sequenceId: string, sequenceDefau
 			if (!sequenceDocument) {
 				sequenceDocument = await mongoModel.findOneAndUpdate(
 					{ _id: sequenceId },
-					{ $inc: { sequenceValue: sequenceDefaultNumber } }, // 当文档首次创建时，通过设置步长的方式设置初始值
+					{ $inc: { sequenceValue: sequenceDefaultNumber } }, // When the document is first created, set the initial value by setting the step size
 					{ upsert: true, new: true, ...options },
 				)
 			} else {
 				sequenceDocument = await mongoModel.findOneAndUpdate(
 					{ _id: sequenceId },
-					{ $inc: { sequenceValue: sequenceStep } }, // 当文档已存在时，只增加一倍步长
+					{ $inc: { sequenceValue: sequenceStep } }, // When the document already exists, only increment by one step size
 					{ new: true, ...options },
 				)
 			}
 			if (sequenceDocument.sequenceValue !== undefined && !sequenceDocument.sequenceValue !== null) {
-				return { success: true, message: '自增 ID 查询成功', result: sequenceDocument.sequenceValue as number }
+				return { success: true, message: 'Auto-increment ID query successful', result: sequenceDocument.sequenceValue as number }
 			} else {
-				console.error('ERROR', '自增 ID 查询结果为空：')
-				throw { success: false, message: '自增 ID 查询结果为空' }
+				console.error('ERROR', 'Auto-increment ID query result is empty:')
+				throw { success: false, message: 'Auto-increment ID query result is empty' }
 			}
 		} catch (error) {
-			console.error('ERROR', '自增 ID 查询失败：', error)
-			throw { success: false, message: '自增 ID 查询失败', error }
+			console.error('ERROR', 'Auto-increment ID query failed:', error)
+			throw { success: false, message: 'Auto-increment ID query failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', 'getNextSequenceValuePool 发生错误')
-		throw { success: false, message: '自增 ID 查询时发生错误', error }
+		console.error('ERROR', 'getNextSequenceValuePool error occurred')
+		throw { success: false, message: 'Error occurred during auto-increment ID query', error }
 	}
 }
 
 /**
- * 在指定的 schema 及 collectionName 中，通过 MongoDB 唯一 ID 找到一个值并自增
- * @param mongodbId MongoDB 唯一 ID
- * @param key 查找到的 MongoDB 文档中被自增的项
- * @param schema MongoDB Schema 对象
- * @param collectionName 查询数据时使用的 MongoDB 集合的名字（输入单数名词会自动创建该名词的复数形式的集合名），需要与 schema 一致
- * @parma sequenceStep 自增的步长，默认：1，每次调用该方法时可以指定不同的步长，该值可以为负数
- * @param options 设置项
- * @returns 查询状态和结果，成功时，应为自增序列的下一个值
+ * In the specified schema and collectionName, find a value through MongoDB unique ID and increment it
+ * @param mongodbId MongoDB unique ID
+ * @param key The item in the found MongoDB document to be incremented
+ * @param schema MongoDB Schema object
+ * @param collectionName Name of the MongoDB collection used when querying data (inputting a singular noun will automatically create a collection name in plural form), must match the schema
+ * @param sequenceStep Increment step size, default: 1, can specify different step size each time this method is called, this value can be negative
+ * @param options Settings
+ * @returns Query status and result, on success, should be the next value of the auto-increment sequence
  */
 type KeysMatching<T, V> = {
   [K in keyof T]: T[K] extends V ? K : never
 }[keyof T]
 export const findOneAndPlusByMongodbId = async <T extends Record<string, unknown>, U extends KeysMatching<T, number>, P = unknown>(mongodbId: string, key: U, schema: Schema<T>, collectionName: string, sequenceStep: number = 1, options?: DbPoolOptions<T, P>): Promise< DbPoolResultType<number> > => {
 	try {
-		// 检查是否存在事务 session，如果存在，则设置 readPreference 为'primary'
+		// Check if transaction session exists, if it does, set readPreference to 'primary'
 		if (options?.session) {
 			options.readPreference = 'primary'
 		}
 
 		let mongoModel: Model<T>
-		// 检查模型是否已存在
+		// Check if model already exists
 		if (mongoose.models[collectionName]) {
 			mongoModel = mongoose.models[collectionName]
 		} else {
@@ -474,16 +474,16 @@ export const findOneAndPlusByMongodbId = async <T extends Record<string, unknown
 		try {
 			const sequenceDocument = await mongoModel.findOneAndUpdate(
 				{ _id: mongodbId },
-				{ $inc: ({ [key]: sequenceStep }) as AnyKeys<T> }, // key: 自增键；sequenceStep: 步长（可以为负数）
+				{ $inc: ({ [key]: sequenceStep }) as AnyKeys<T> }, // key: increment key; sequenceStep: step size (can be negative)
 				{ new: false, options },
 			)
-			return { success: true, message: '自增成功', result: sequenceDocument.sequenceValue as number }
+			return { success: true, message: 'Increment successful', result: sequenceDocument.sequenceValue as number }
 		} catch (error) {
-			console.error('ERROR', '自增失败：', error)
-			throw { success: false, message: '自增失败', error }
+			console.error('ERROR', 'Increment failed:', error)
+			throw { success: false, message: 'Increment failed', error }
 		}
 	} catch (error) {
-		console.error('ERROR', 'findOneAndPlusByMongodbId 发生错误')
-		throw { success: false, message: '自增时发生错误', error }
+		console.error('ERROR', 'findOneAndPlusByMongodbId error occurred')
+		throw { success: false, message: 'Error occurred during increment', error }
 	}
 }

@@ -1,35 +1,35 @@
 import { Schema } from 'mongoose'
 
 /**
- * 弾幕数据
+ * Danmaku data
  */
 class DanmakuSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** KVID 视频 ID - 非空 */
+		/** KVID video ID - non-null */
 		videoId: { type: Number, required: true },
-		/** 弹幕发送者的的 UUID，关联用户安全集合的 UUID - 非空 */
+		/** Danmaku sender's UUID, associated with user security collection UUID - non-null */
 		UUID: { type: String, required: true },
-		/** 弹幕发送者的 UID - 非空 */
+		/** Danmaku sender's UID - non-null */
 		uid: { type: Number, required: true },
-		/** 弹幕发送的时机，单位：秒（支持小数） - 非空  */
+		/** Danmaku send timing, unit: seconds (supports decimals) - non-null  */
 		time: { type: Number, required: true },
-		/** 弾幕文本 - 非空 */
+		/** Danmaku text - non-null */
 		text: { type: String, required: true },
-		/** 弾幕颜色 - 非空 */
+		/** Danmaku color - non-null */
 		color: { type: String, required: true },
-		/** 弹幕字体大小 - 非空 */ /** 后端只存储三种数据，在前端再根据类型映射为 css 可用的像素 */ /** 默认 'medium' —— 中等尺寸 */
+		/** Danmaku font size - non-null */ /** Backend only stores three types of data, frontend maps to CSS-usable pixels based on type */ /** Default 'medium' - medium size */
 		fontSize: { type: String, enum: ['small', 'medium', 'large'], required: true, default: 'medium' },
-		/** 弹幕发射模式 - 非空 */ /** 默认 'rtl' —— 从右舷向左发射 */
+		/** Danmaku launch mode - non-null */ /** Default 'rtl' - launch from right to left */
 		mode: { type: String, enum: ['ltr', 'rtl', 'top', 'bottom'], required: true, default: 'rtl' },
-		/** 是否启用彩虹弹幕 - 非空 */ /** 默认 false —— 不启用 */
+		/** Whether to enable rainbow danmaku - non-null */ /** Default false - not enabled */
 		enableRainbow: { type: Boolean, required: false, default: false },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'danmaku'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 

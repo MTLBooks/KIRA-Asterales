@@ -1,18 +1,18 @@
 import { Schema } from 'mongoose'
 
 /**
- * 自增序列
+ * Auto-increment sequence
  */
 export class SequenceValueSchemaFactory {
 	schema = {
-		/** 自增的项，比如：videoId */
+		/** Auto-increment item, e.g.: videoId */
 		_id: { type: String, unique: true, required: true },
-		/** 自增的值 */
+		/** Auto-increment value */
 		sequenceValue: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'sequence-value'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 

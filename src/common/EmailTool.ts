@@ -2,7 +2,7 @@ import { SMTPClient } from 'emailjs'
 import { resolve } from 'path'
 
 /**
- * 邮件正文数据， text 和 html 二者至少一个不能为空
+ * Email body data, at least one of text and html must not be empty
  */
 type EmailBodyType =
 	| { text: string; html?: string }
@@ -10,11 +10,11 @@ type EmailBodyType =
 	| { text: string; html: string }
 
 /**
- * 发送电子邮件
- * @param to 收件人
- * @param title 电子邮件的标题（subject）
- * @param body 电子邮件的正文，详见 EmailBodyType
- * @returns 发送电子邮件的结果
+ * Send email
+ * @param to Recipient
+ * @param title Email title (subject)
+ * @param body Email body, see EmailBodyType for details
+ * @returns Result of sending email
  */
 export const sendMail = async (to: string, title: string, body: EmailBodyType) => {
 	const smtpHost = process.env.SMTP_ENDPOINT
@@ -24,77 +24,77 @@ export const sendMail = async (to: string, title: string, body: EmailBodyType) =
 	const KIRAKIRA_EMAIL_SENDER_ADDRESS = 'KIRAKIRA <no-reply@kirakira.moe>'
 
 	if (!smtpHost) {
-		console.error('ERROR', '发送邮件失败，环境变量中的 smtpHost 为空')
+		console.error('ERROR', 'Failed to send email, smtpHost in environment variables is empty')
 		throw new Error('Unable send email because the smtpHost is null')
 	}
 
 	if (smtpPort === undefined || smtpPort === null) {
-		console.error('ERROR', '发送邮件失败，环境变量中的 smtpPort 为空或不是合法的端口')
+		console.error('ERROR', 'Failed to send email, smtpPort in environment variables is empty or not a valid port')
 		throw new Error('Unable send email because the smtpPort is null')
 	}
 
 	if (!smtpUsername) {
-		console.error('ERROR', '发送邮件失败，环境变量中的 smtpUsername 为空')
+		console.error('ERROR', 'Failed to send email, smtpUsername in environment variables is empty')
 		throw new Error('Unable send email because the smtpUsername is null')
 	}
 
 	if (!smtpPassword) {
-		console.error('ERROR', '发送邮件失败，环境变量中的 smtpPassword 为空')
+		console.error('ERROR', 'Failed to send email, smtpPassword in environment variables is empty')
 		throw new Error('Unable send email because the smtpPassword is null')
 	}
 
 	if (!to) {
-		console.error('ERROR', '发送邮件失败，收件人为空')
+		console.error('ERROR', 'Failed to send email, recipient is empty')
 		throw new Error('Unable to send the mail, Recipient(TO) is empty')
 	}
 
 	if (!title) {
-		console.error('ERROR', '发送邮件失败，邮件标题 (subject) 为空')
+		console.error('ERROR', 'Failed to send email, email title (subject) is empty')
 		throw new Error('Unable to send the mail, email title (subject) is empty')
 	}
 
 	if (title.length > 200) {
-		console.warn('WARN', 'WARNING', '警告：当前邮件标题 (subject) 长度超过 200 字，请降低长度，长度超过 1000 字的邮件无法发送。')
+		console.warn('WARN', 'WARNING', 'Warning: Current email title (subject) length exceeds 200 characters, please reduce the length. Emails with titles longer than 1000 characters cannot be sent.')
 	}
 
 	if (title.length > 1000) {
-		console.error('ERROR', '发送邮件失败，邮件标题 (subject) 过长')
+		console.error('ERROR', 'Failed to send email, email title (subject) is too long')
 		throw new Error('Unable to send the mail, title (subject) is too long')
 	}
 
 	if (!body.text && !body.html) {
-		console.error('ERROR', '发送邮件失败，邮件体 body 中的 text 和 html 为空，请至少提供一个正文数据')
+		console.error('ERROR', 'Failed to send email, both text and html in email body are empty, please provide at least one body data')
 		throw new Error('Unable to send the mail, text and html in body in null')
 	}
 
-	// 配置 SMTP 客户端，并指定端口
+	// Configure SMTP client and specify port
 	const client = new SMTPClient({
-		user: smtpUsername, // 你的 SMTP 用户名
-		password: smtpPassword, // 你的 SMTP 密码
-		host: smtpHost, // 根据你的区域选择合适的 SMTP 服务器地址
-		port: parseInt(smtpPort, 10), // 指定端口（例如 587 或 465）
-		tls: true, // 启用 TLS
+		user: smtpUsername, // Your SMTP username
+		password: smtpPassword, // Your SMTP password
+		host: smtpHost, // Choose appropriate SMTP server address based on your region
+		port: parseInt(smtpPort, 10), // Specify port (e.g., 587 or 465)
+		tls: true, // Enable TLS
 		ssl: false,
 	})
 
-	// 配置邮件内容
+	// Configure email content
 	const message = {
 		text: body.text,
-		from: KIRAKIRA_EMAIL_SENDER_ADDRESS, // 发件人邮箱地址
-		to, // 收件人邮箱地址
-		subject: title, // 邮件主题
+		from: KIRAKIRA_EMAIL_SENDER_ADDRESS, // Sender email address
+		to, // Recipient email address
+		subject: title, // Email subject
 		attachment: [
 			{
 				data: body.html,
 				alternative: true,
 			},
-			// #region 内嵌附件图片
+			// #region Embedded attachment images
 			/* {
 				path: resolve(import.meta.dirname, "../assets/images", "background.png"),
 				type: "image/png",
 				headers: { "Content-ID": "<background>" },
 			}, */
-			// 糟糕，许多邮箱不支持 CSS background-image 的内嵌图片显示！
+			// Unfortunately, many email clients don't support displaying embedded images with CSS background-image!
 			{
 				path: resolve(import.meta.dirname, "../assets/images", "banner.png"),
 				type: "image/png",
@@ -106,17 +106,17 @@ export const sendMail = async (to: string, title: string, body: EmailBodyType) =
 
 	try {
 		const result = await client.sendAsync(message)
-		return { success: true, result, message: '邮件发送成功' }
+		return { success: true, result, message: 'Email sent successfully' }
 	} catch (error) {
-		console.error('ERROR', '发送邮件失败，发送出错', error)
-		return { success: false, result: undefined, message: '邮件发送失败' }
+		console.error('ERROR', 'Failed to send email, sending error occurred', error)
+		return { success: false, result: undefined, message: 'Email sending failed' }
 	}
 }
 
 /**
- * 验证 Email 地址是否合法
- * @param email 被验证的 Email 地址
- * @returns 验证结果，不合法返回 true
+ * Validate if Email address is valid
+ * @param email Email address to be validated
+ * @returns Validation result, returns true if invalid
  */
 export function isInvalidEmail(email: string): boolean {
 	return !email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]{2,}$/)

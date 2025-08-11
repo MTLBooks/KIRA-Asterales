@@ -1,61 +1,61 @@
 import { Schema } from 'mongoose'
 
 /**
- * 收藏夹数据
+ * Favorites data
  */
 class FavoritesSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 收藏夹唯一 ID - 非空 - 唯一 */
+		/** Favorites unique ID - non-null - unique */
 		favoritesId: { type: Number, required: true, unique: true },
-		/** 收藏夹创建者 - 非空 */
+		/** Favorites creator - non-null */
 		creator: { type: Number, required: true },
-		/** 收藏夹其他维护者 */
+		/** Favorites other maintainers */
 		editor: { type: [Number] },
-		/** 收藏夹标题 - 非空 */
+		/** Favorites title - non-null */
 		favoritesTitle: { type: String, required: true },
-		/** 收藏夹简介 */
+		/** Favorites bio */
 		favoritesBio: { type: String },
-		/** 收藏夹封面 */
+		/** Favorites cover */
 		favoritesCover: { type: String },
-		/** 收藏夹可见性 - 非空 - 1 公开，0 仅关注者，-1 私有‘ */
+		/** Favorites visibility - non-null - 1 public, 0 followers only, -1 private */
 		favoritesVisibility: { type: Number, required: true },
-		/** 收藏夹创建时间 - 非空 */
+		/** Favorites creation time - non-null */
 		favoritesCreateDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'favorites'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const FavoritesSchema = new FavoritesSchemaFactory()
 
 /**
- * 收藏夹明细数据
+ * Favorites detail data
  */
 class FavoritesDetailSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 收藏夹唯一 ID - 非空 */
+		/** Favorites unique ID - non-null */
 		favoritesListId: { type: Number, required: true },
-		/** 谁将本条内容添加到收藏夹 - 非空 */
+		/** Who added this content to favorites - non-null */
 		operator: { type: Number, required: true },
-		/** 内容的类型，比如说 video, photo 等 - 非空 */
+		/** Content type, such as video, photo, etc. - non-null */
 		category: { type: String, required: true },
-		/** 内容的唯一 ID - 非空 */
+		/** Content unique ID - non-null */
 		id: { type: String, required: true },
-		/** 添加到收藏的时间 - 非空 */
+		/** Time added to favorites - non-null */
 		addedDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'favorites-detail'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const FavoritesDetailSchema = new FavoritesDetailSchemaFactory()

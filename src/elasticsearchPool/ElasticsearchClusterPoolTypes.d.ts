@@ -1,10 +1,10 @@
 /**
- * Elasticsearch Document Schema Item 的 type 参数允许的类型
+ * Elasticsearch Document Schema Item's type parameter allowed types
  */
 type EsDocumentItemConstructorType = StringConstructor | NumberConstructor | BooleanConstructor | DateConstructor | ArrayConstructor | unknown[] | ArrayConstructor | Record<string, EsDocumentItemType>
 
 /**
- * Elasticsearch Document Schema Item 的类型
+ * Elasticsearch Document Schema Item type
  */
 type EsDocumentItemType = {
 	type: EsDocumentItemConstructorType;
@@ -14,7 +14,7 @@ type EsDocumentItemType = {
 type ArrayElementType<T> = T extends (infer U)[] ? U : T
 
 /**
- * 从构造器类型映射到对应的 TypeScript 基本类型；如果是对象，则递归判断
+ * Map from constructor type to corresponding TypeScript basic type; if it's an object, recursively determine
  */
 type ConstructorTypeMapper<T> =
 	T extends StringConstructor ? string :
@@ -27,19 +27,19 @@ type ConstructorTypeMapper<T> =
 								never
 
 /**
- * 守护类型，确保 Elasticsearch Document Schema Item 定义了 type，否则返回 never
+ * Guard type, ensure Elasticsearch Document Schema Item defines type, otherwise return never
  */
 type PropertyType<T> = T extends { type: infer R } ? ConstructorTypeMapper<R> : never
 
 /**
- * 将 Elasticsearch Document Schema 转换为 Ts 类型
+ * Convert Elasticsearch Document Schema to Ts type
  *
- * 使用这种方式定义的 schema 和 indexName ，能够建立关联关系，保证 schema 匹配到正确的 indexName（这与 Rust 的“[Slice 类型](https://kaisery.github.io/trpl-zh-cn/ch04-03-slices.html)”理念想要解决的问题有点像）
+ * Using this method to define schema and indexName can establish an association relationship, ensuring schema matches the correct indexName (this is a bit like the problem that Rust's "[Slice type](https://kaisery.github.io/trpl-zh-cn/ch04-03-slices.html)" concept wants to solve)
  *
- * // WARN 注意 required 属性的值必须这样声明→ true as const，而不是仅仅写一个 true 或 false，一定要加上 as const，否则不会生效
+ * // WARN Note that the value of the required property must be declared like this → true as const, not just write a true or false, must add as const, otherwise it won't take effect
  *
  * @example
- * // 示例：定义一个包含 schema 和 indexName 的 Elasticsearch Document 对象
+ * // Example: Define an Elasticsearch Document object containing schema and indexName
  * const fooDocument = {
  *   schema: {
  *     foo: { type: String },
@@ -54,10 +54,10 @@ type PropertyType<T> = T extends { type: infer R } ? ConstructorTypeMapper<R> : 
  *   indexName: 'test-index',
  * }
  *
- * // 使用 EsSchema2TsType 转换上述 schema
+ * // Use EsSchema2TsType to convert the above schema
  * type fooDocumentType = EsSchema2TsType<typeof fooDocument.schema>;
  *
- * // 转换后的 TypeScript 类型：
+ * // Converted TypeScript type:
  * // type fooDocumentType = {
  * //   foo?: string,
  * //   bar: string,
@@ -76,7 +76,7 @@ export type EsSchema2TsType<T> = {
 
 
 // /**
-//  * Elasticsearch 搜索时的数据类型映射
+//  * Elasticsearch search data type mapping
 //  */
 // type QueryTypeMapper<T> =
 // 	T extends Record<string, string> ? string :
@@ -86,17 +86,17 @@ export type EsSchema2TsType<T> = {
 // 					never
 
 
-// /** Elasticsearch Query，相当于 SQL 中的 WHERE LIKE */
+// /** Elasticsearch Query, equivalent to WHERE LIKE in SQL */
 // export type EsQueryType<T> = {
 // 	[K in keyof T]?: QueryTypeMapper<T[K]>;
 // }
 
-/** 去 Elasticsearch 执行操作的返回结果 */
+/** Result returned from executing operations in Elasticsearch */
 export type EsResultType<T> = {
-	/** 去 Elasticsearch 执行操作是否成功，成功为 true，失败为 false */
+	/** Whether the operation executed in Elasticsearch was successful, true for success, false for failure */
 	success: boolean;
-	/** 附加的消息 */
+	/** Additional message */
 	message?: string;
-	/** 执行操作返回的结果 */
+	/** Result returned from executing the operation */
 	result?: T[];
 }

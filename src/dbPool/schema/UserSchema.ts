@@ -1,421 +1,421 @@
 import { Schema } from 'mongoose'
 
 /**
- * 用户安全认证集合
+ * User Security Authentication Collection
  */
 class UserAuthSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 - 唯一 */
+		/** User's UUID, associated with user security collection UUID - non-null - unique */
 		UUID: { type: String, required: true, unique: true },
-		/** 用户的 UID - 非空 */
+		/** User's UID - non-null */
 		uid: { type: Number, required: true, unique: true },
-		/** 用户邮箱 - 非空 */
+		/** User's email - non-null */
 		email: { type: String, required: true, unique: true },
-		/** 全小写的用户邮箱 - 非空 */
+		/** User's email in lowercase - non-null */
 		emailLowerCase: { type: String, required: true, unique: true },
-		/** 被两次 Bcrypt Hash 的密码 - 非空 */
+		/** Password hashed twice with Bcrypt - non-null */
 		passwordHashHash: { type: String, required: true },
-		/** 用户的身分令牌 - 非空 */
+		/** User's identity token - non-null */
 		token: { type: String, required: true },
-		/** 密码提示 */
-		passwordHint: String, // TODO: 如何确保密码提示的安全性？
-		// /** 用户的角色 */
+		/** Password hint */
+		passwordHint: String, // TODO: How to ensure password hint security?
+		// /** User's role */
 		// role: { type: String, required: true },
-		/** 用户的角色 */
+		/** User's roles */
 		roles: { type: [String], required: true },
-		/** 用户开启的 2FA 类型 - 非空 */ /* 可以为 email, totp 或 none（表示未开启） */
+		/** User's enabled 2FA type - non-null */ /* Can be email, totp or none (indicating not enabled) */
 		authenticatorType: { type: String, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		userCreateDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-auth'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserAuthSchema = new UserAuthSchemaFactory()
 
 /**
- * 用户的个人标签
+ * User's personal labels
  */
 const UserLabelSchema = {
-	/** 标签 ID - 非空 */
+	/** Label ID - non-null */
 	id: { type: Number, required: true },
-	/** 标签名 - 非空 */
+	/** Label name - non-null */
 	labelName: { type: String, required: true },
 }
 
 /**
- * 用户的关联账户
+ * User's linked accounts
  */
 const UserLinkedAccountsSchema = {
-	/** 关联账户的平台 - 非空 - 例："X" */
+	/** Linked account platform - non-null - example: "X" */
 	platformId: { type: String, required: true },
-	/** 关联账户唯一标识 - 非空 */
+	/** Linked account unique identifier - non-null */
 	accountUniqueId: { type: String, required: true },
 }
 
 /**
- * 用户的关联网站
+ * User's linked websites
  */
 const UserWebsiteSchema = {
-	/** 关联网站名 - 非空 - 例："我的个人主页" */
+	/** Linked website name - non-null - example: "My Personal Homepage" */
 	websiteName: { type: String, required: true },
-	/** 关联网站 URL - 非空 */
+	/** Linked website URL - non-null */
 	websiteUrl: { type: String, required: true },
 }
 
 /**
- * 用户信息集合
+ * User Information Collection
  */
 class UserInfoSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 - 唯一 */
+		/** User's UUID, associated with user security collection UUID - non-null - unique */
 		UUID: { type: String, required: true, unique: true },
-		/** 用户的 UID - 非空 - 唯一 */
+		/** User's UID - non-null - unique */
 		uid: { type: Number, required: true, unique: true },
-		/** 用户名 - 唯一 */
+		/** Username - unique */
 		username: { type: String, unique: true },
-		/** 用户昵称 */
+		/** User nickname */
 		userNickname: { type: String },
-		/** 用户头像的链接 */
+		/** User avatar link */
 		avatar: { type: String },
-		/** 用户背景图片的链接 */
+		/** User background image link */
 		userBannerImage: { type: String },
-		/** 用户的个性签名 */
+		/** User's personal signature */
 		signature: { type: String },
-		/** 用户的性别，男、女和自定义（字符串）v */
+		/** User's gender, male, female and custom (string) */
 		gender: { type: String },
-		/** 用户的个人标签 */
+		/** User's personal labels */
 		label: { type: [UserLabelSchema], required: false },
-		/** 用户生日 */
+		/** User's birthday */
 		userBirthday: { type: Number },
-		/** 用户主页 Markdown */
+		/** User homepage Markdown */
 		userProfileMarkdown: { type: String },
-		/** 用户的关联账户 */
+		/** User's linked accounts */
 		userLinkedAccounts: { type: [UserLinkedAccountsSchema], required: false },
-		/** 用户关联网站 */
+		/** User's linked websites */
 		userWebsite: { type: UserWebsiteSchema },
-		/** 是否在上一次审核通过后修改了用户信息，当第一次创建用户信息以及发生了更新时需要设为 true，当管理员通过审核时时将其改为 false */
+		/** Whether user information was modified after last review approval, should be set to true when first creating user info and when updates occur, should be changed to false when admin approves */
 		isUpdatedAfterReview: { type: Boolean, required: true },
-		/** 编辑操作人 */
+		/** Edit operator */
 		editOperatorUUID: { type: String },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-info'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserInfoSchema = new UserInfoSchemaFactory()
 
 /**
- * 用户关联平台的隐私可见性设置
+ * User linked platform privacy visibility settings
  */
 const UserLinkedAccountsVisibilitiesSettingSchema = {
-	/** 关联平台的 ID - 非空 - 例：'X', 'wechat', 'bilibili' */
+	/** Linked platform ID - non-null - example: 'X', 'wechat', 'bilibili' */
 	platformId: { type: String, required: true },
-	/** 显示方式 - 非空 - 允许的值有：{public: 公开, following: 仅关注, private: 隐藏} */
+	/** Display method - non-null - allowed values: {public: public, following: followers only, private: hidden} */
 	visibilitiesType: { type: String, required: true },
 }
 
 /**
- * 用户隐私数据可见性设置
+ * User privacy data visibility settings
  */
 const UserPrivaryVisibilitiesSettingSchema = {
-	/** 用户隐私数据项的 ID - 非空 - 例：'birthday', 'follow', 'fans' */
+	/** User privacy data item ID - non-null - example: 'birthday', 'follow', 'fans' */
 	privaryId: { type: String, required: true },
-	/** 显示方式 - 非空 - 允许的值有：{public: 公开, following: 仅关注, private: 隐藏} */
+	/** Display method - non-null - allowed values: {public: public, following: followers only, private: hidden} */
 	visibilitiesType: { type: String, required: true },
 }
 
 /**
- * 用户个性设定集合
+ * User Personal Settings Collection
  */
 class UserSettingsSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 - 唯一 */
+		/** User's UUID, associated with user security collection UUID - non-null - unique */
 		UUID: { type: String, required: true, unique: true },
-		/** 用户的 UID - 非空 - 唯一 */
+		/** User's UID - non-null - unique */
 		uid: { type: Number, required: true, unique: true },
-		/** 是否启用 Cookie - 布尔 */
+		/** Whether to enable Cookie - boolean */
 		enableCookie: { type: Boolean },
-		/** 主题外观设置（主题类型） - 可选的值：{light: 浅色, dark: 深色, system: 跟随系统} */
+		/** Theme appearance settings (theme type) - optional values: {light: light, dark: dark, system: follow system} */
 		themeType: { type: String },
-		/** 主题颜色 - 字符串，颜色字符串 */
+		/** Theme color - string, color string */
 		themeColor: { type: String },
-		/** 用户自定义主题颜色 - 字符串，HAX 颜色字符串，不包含井号 */
+		/** User custom theme color - string, HAX color string, without hash symbol */
 		themeColorCustom: { type: String },
-		/** 壁纸（背景图 URL） - 字符串 */
+		/** Wallpaper (background image URL) - string */
 		wallpaper: { type: String },
-		/** 是否启用彩色导航栏 - 布尔 */
+		/** Whether to enable colored navigation bar - boolean */
 		coloredSideBar: { type: Boolean },
-		/** 节流模式 - 字符串，{standard: 标准, limit: 节流模式, preview: 超前加载} */
+		/** Throttling mode - string, {standard: standard, limit: throttling mode, preview: preload} */
 		dataSaverMode: { type: String },
-		/** 禁用搜索推荐 - 布尔 */
+		/** Disable search recommendations - boolean */
 		noSearchRecommendations: { type: Boolean },
-		/** 禁用相关视频推荐 - 布尔 */
+		/** Disable related video recommendations - boolean */
 		noRelatedVideos: { type: Boolean },
-		/** 禁用搜索历史 - 布尔 */
+		/** Disable search history - boolean */
 		noRecentSearch: { type: Boolean },
-		/** 禁用视频历史 - 布尔 */
+		/** Disable video history - boolean */
 		noViewHistory: { type: Boolean },
-		/** 是否在新窗口打开视频 - 布尔 */
+		/** Whether to open videos in new window - boolean */
 		openInNewWindow: { type: Boolean },
-		/** 显示语言 - 字符串 */
+		/** Display language - string */
 		currentLocale: { type: String },
-		/** 用户时区 - 字符串 */
+		/** User timezone - string */
 		timezone: { type: String },
-		/** 用户单位制度 - 字符串，刻度制或分度值，英制或美制等内容 */
+		/** User unit system - string, scale system or division value, imperial or US system etc. */
 		unitSystemType: { type: String },
-		/** 是否进入了开发者模式 - 布尔 */
+		/** Whether entered developer mode - boolean */
 		devMode: { type: Boolean },
-		/** 实验性：启用动态背景 - 布尔 */
+		/** Experimental: Enable dynamic background - boolean */
 		showCssDoodle: { type: Boolean },
-		/** 实验性：启用直角模式 - 布尔 */
+		/** Experimental: Enable sharp mode - boolean */
 		sharpAppearanceMode: { type: Boolean },
-		/** 实验性：启用扁平模式 - 布尔 */
+		/** Experimental: Enable flat mode - boolean */
 		flatAppearanceMode: { type: Boolean },
-		/** 用户关联网站的隐私设置 */
+		/** User linked website privacy settings */
 		userWebsitePrivacySetting: { type: String },
-		/** 用户隐私数据可见性设置 */
+		/** User privacy data visibility settings */
 		userPrivaryVisibilitiesSetting: { type: [UserPrivaryVisibilitiesSettingSchema] },
-		/** 用户关联平台的隐私可见性设置 */
+		/** User linked platform privacy visibility settings */
 		userLinkedAccountsVisibilitiesSetting: { type: [UserLinkedAccountsVisibilitiesSettingSchema] },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 // WARN 不要使用单词的复数形式，Mongoose 会自动添加！ */
+	/** MongoDB collection name // WARN Don't use plural forms of words, Mongoose will add automatically! */
 	collectionName = 'user-setting'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserSettingsSchema = new UserSettingsSchemaFactory()
 
 /**
- * 用户注册邮箱验证码
+ * User registration email verification code
  */
 class UserVerificationCodeSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的邮箱 - 非空 - 唯一 */
+		/** User's email - non-null - unique */
 		emailLowerCase: { type: String, required: true, unique: true },
-		/** 用户的验证码 - 非空 */
+		/** User's verification code - non-null */
 		verificationCode: { type: String, required: true },
-		/** 用户的验证码过期时间 - 非空 */
+		/** User's verification code expiration time - non-null */
 		overtimeAt: { type: Number, required: true, unique: true },
-		/** 用户今日请求的次数，用于防止滥用 - 非空 */
+		/** User's request count today, used to prevent abuse - non-null */
 		attemptsTimes: { type: Number, required: true },
-		/** 用户上一次请求验证码的时间，用于防止滥用 - 非空 */
+		/** User's last verification code request time, used to prevent abuse - non-null */
 		lastRequestDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-verification-code'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserVerificationCodeSchema = new UserVerificationCodeSchemaFactory()
 
 /**
- * 用户邀请码
+ * User invitation code
  */
 class UserInvitationCodeSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 生成邀请码的用户 UUID，关联用户安全集合的 UUID - 非空 */
+		/** User UUID who generated invitation code, associated with user security collection UUID - non-null */
 		creatorUUID: { type: String, required: true },
-		/** 生成邀请码的用户 - 非空 */
+		/** User who generated invitation code - non-null */
 		creatorUid: { type: Number, required: true },
-		/** 邀请码 - 非空 - 唯一 */
+		/** Invitation code - non-null - unique */
 		invitationCode: { type: String, required: true, unique: true },
-		/** 生成邀请码的时间 - 非空 */
+		/** Invitation code generation time - non-null */
 		generationDateTime: { type: Number, required: true },
-		/** 邀请码被标记为等待使用中 - 非空 */
+		/** Invitation code marked as pending use - non-null */
 		isPending: { type: Boolean, required: true },
-		/** 邀请码被标记为无法使用 - 非空 */
+		/** Invitation code marked as unusable - non-null */
 		disabled: { type: Boolean, required: true },
-		/** 使用这个邀请码的用户 UUID */
+		/** User UUID who used this invitation code */
 		assigneeUUID: { type: String },
-		/** 使用这个邀请码的用户 */
+		/** User who used this invitation code */
 		assignee: { type: Number },
-		/** 邀请码被使用的时间 */
+		/** Time when invitation code was used */
 		usedDateTime: { type: Number },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-invitation-code'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserInvitationCodeSchema = new UserInvitationCodeSchemaFactory()
 
 /**
- * 用户更改邮箱的邮箱验证码
+ * User email change verification code
  */
 class UserChangeEmailVerificationCodeSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的邮箱 - 非空 - 唯一 */
+		/** User's email - non-null - unique */
 		emailLowerCase: { type: String, required: true, unique: true },
-		/** 用户的验证码 - 非空 */
+		/** User's verification code - non-null */
 		verificationCode: { type: String, required: true },
-		/** 用户的验证码过期时间 - 非空 */
+		/** User's verification code expiration time - non-null */
 		overtimeAt: { type: Number, required: true, unique: true },
-		/** 用户今日请求的次数，用于防止滥用 - 非空 */
+		/** User's request count today, used to prevent abuse - non-null */
 		attemptsTimes: { type: Number, required: true },
-		/** 用户上一次请求验证码的时间，用于防止滥用 - 非空 */
+		/** User's last verification code request time, used to prevent abuse - non-null */
 		lastRequestDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-change-email-verification-code'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserChangeEmailVerificationCodeSchema = new UserChangeEmailVerificationCodeSchemaFactory()
 
 /**
- * 用户更改密码的邮箱验证码
+ * User password change email verification code
  */
 class UserChangePasswordVerificationCodeSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 */
+		/** User's UUID, associated with user security collection UUID - non-null */
 		UUID: { type: String, required: true },
-		/** 用户 ID - 非空 */
+		/** User ID - non-null */
 		uid: { type: Number, required: true },
-		/** 用户的邮箱 - 非空 - 唯一 */
+		/** User's email - non-null - unique */
 		emailLowerCase: { type: String, required: true, unique: true },
-		/** 用户的验证码 - 非空 */
+		/** User's verification code - non-null */
 		verificationCode: { type: String, required: true },
-		/** 用户的验证码过期时间 - 非空 */
+		/** User's verification code expiration time - non-null */
 		overtimeAt: { type: Number, required: true, unique: true },
-		/** 用户今日请求的次数，用于防止滥用 - 非空 */
+		/** User's request count today, used to prevent abuse - non-null */
 		attemptsTimes: { type: Number, required: true },
-		/** 用户上一次请求验证码的时间，用于防止滥用 - 非空 */
+		/** User's last verification code request time, used to prevent abuse - non-null */
 		lastRequestDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-change-password-verification-code'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserChangePasswordVerificationCodeSchema = new UserChangePasswordVerificationCodeSchemaFactory()
 
 /**
- * 用户 TOTP 身份验证器
+ * User TOTP authenticator
  */
 class UserTotpAuthenticatorSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 */
+		/** User's UUID, associated with user security collection UUID - non-null */
 		UUID: { type: String, required: true },
-		/** 是否启用 TOTP 身份验证器 - 非空 - 默认值：false */
+		/** Whether TOTP authenticator is enabled - non-null - default: false */
 		enabled: { type: Boolean, required: true, default: false },
-		/** 验证器密钥 */
+		/** Authenticator secret */
 		secret: { type: String },
-		/** 恢复码 */
+		/** Recovery code */
 		recoveryCodeHash: { type: String },
-		/** 备份码 */
+		/** Backup codes */
 		backupCodeHash: { type: [String] },
-		/** QRcode */
+		/** QR code */
 		otpAuth: { type: String, unique: true },
-		/** 尝试次数 */
+		/** Attempt count */
 		attempts: { type: Number },
-		/** 上次尝试登录时间 */
+		/** Last login attempt time */
 		lastAttemptTime: { type: Number },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-totp-authenticator'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 
-	// 构造器
+	// Constructor
 	constructor() {
-		// 添加 UUID 和 secret 组合的唯一索引
+		// Add unique index for UUID and secret combination
 		this.schemaInstance.index({ UUID: 1, secret: 1 }, { unique: true });
 	}
 }
 export const UserTotpAuthenticatorSchema = new UserTotpAuthenticatorSchemaFactory()
 
 /**
- * 用户 Email 身份验证器
+ * User Email authenticator
  */
 class UserEmailAuthenticatorSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 */
+		/** User's UUID, associated with user security collection UUID - non-null */
 		UUID: { type: String, required: true },
-		/** 用户的 Email */
+		/** User's Email */
 		emailLowerCase: { type: String, required: true },
-		/** 是否启用 Email 身份验证器 - 非空 - 默认值：false */
+		/** Whether Email authenticator is enabled - non-null - default: false */
 		enabled: { type: Boolean, required: true, default: false },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-email-authenticator'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 
-	// 构造器
+	// Constructor
 	constructor() {
-		// 添加 UUID 和 secret 组合的唯一索引
+		// Add unique index for UUID and email combination
 		this.schemaInstance.index({ UUID: 1, email: 1 }, { unique: true });
 	}
 }
 export const UserEmailAuthenticatorSchema = new UserEmailAuthenticatorSchemaFactory()
 
 /**
- * 用户验证 Email 身份验证器的邮箱验证码
+ * User Email authenticator verification code
  */
 class UserEmailAuthenticatorVerificationCodeSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 用户的 UUID，关联用户安全集合的 UUID - 非空 */
+		/** User's UUID, associated with user security collection UUID - non-null */
 		UUID: { type: String, required: true },
-		/** 用户 ID - 非空 */
+		/** User ID - non-null */
 		uid: { type: Number, required: true },
-		/** 用户的邮箱 - 非空 - 唯一 */
+		/** User's email - non-null - unique */
 		emailLowerCase: { type: String, required: true, unique: true },
-		/** 用户的验证码 - 非空 */
+		/** User's verification code - non-null */
 		verificationCode: { type: String, required: true },
-		/** 用户的验证码过期时间 - 非空 */
+		/** User's verification code expiration time - non-null */
 		overtimeAt: { type: Number, required: true, unique: true },
-		/** 用户今日请求的次数，用于防止滥用 - 非空 */
+		/** User's request count today, used to prevent abuse - non-null */
 		attemptsTimes: { type: Number, required: true },
-		/** 用户上一次请求验证码的时间，用于防止滥用 - 非空 */
+		/** User's last verification code request time, used to prevent abuse - non-null */
 		lastRequestDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'user-email-authenticator-verification-code'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UserEmailAuthenticatorVerificationCodeSchema = new UserEmailAuthenticatorVerificationCodeSchemaFactory()

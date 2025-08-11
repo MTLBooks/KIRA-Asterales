@@ -1,11 +1,11 @@
 
 /**
  *
- * 在 js 中为一个复杂对象数组去重
+ * Remove duplicate objects from a complex object array in JavaScript
  * BY: ChatGPT-4, 02
  *
- * @param array 被去重的数组
- * @returns 去重完成的数组
+ * @param array Array to be deduplicated
+ * @returns Deduplicated array
  */
 export const removeDuplicateObjects = <T>(array: T[]): T[] => {
 	if (array && array.length > 0) {
@@ -28,16 +28,16 @@ type NestedArray<T> = T | NestedArray<T>[]
 
 /**
  *
- * 去除对象数组中的重复对象，递归深度比较且提供更好的鲁棒性
- * // ? 去重时，对象的属性顺序发生变化时无法比较, {foo: 1, bar: 2} 和 {bar: 2, foo: 1} 算作不同的对象，性能更好
+ * Remove duplicate objects from object arrays with recursive deep comparison and better robustness
+ * // ? When deduplicating, objects with changed property order cannot be compared, {foo: 1, bar: 2} and {bar: 2, foo: 1} are treated as different objects, better performance
  * BY: ChatGPT-4, 02
  *
- * @param array 被去重的数组
- * @returns 去重完成的数组
+ * @param array Array to be deduplicated
+ * @returns Deduplicated array
  */
 export const removeDuplicateObjectsInDeepArrayStrong = <T>(inputArray: NestedArray<T>): T[] => {
 	try {
-		// 将输入数组扁平化为一维数组
+		// Flatten the input array into a one-dimensional array
 		const flattenArray = <T>(arr: NestedArray<T>): T[] => {
 			if (!Array.isArray(arr)) {
 				return [arr]
@@ -48,12 +48,12 @@ export const removeDuplicateObjectsInDeepArrayStrong = <T>(inputArray: NestedArr
 			}, [])
 		}
 
-		// 检查两个对象是否相等
+		// Check if two objects are equal
 		const isEqual = (obj1: unknown, obj2: unknown): boolean => {
 			return JSON.stringify(obj1) === JSON.stringify(obj2)
 		}
 
-		// 去除重复的对象
+		// Remove duplicate objects
 		const removeDuplicates = <T>(arr: T[]): T[] => {
 			return arr.filter((value, index, self) => {
 				return self.findIndex(item => isEqual(item, value)) === index
@@ -73,7 +73,7 @@ export const removeDuplicateObjectsInDeepArrayStrong = <T>(inputArray: NestedArr
 	}
 }
 
-// 对象比较函数
+// Object comparison function
 const objectsAreEqual = <T>(a: T, b: T): boolean => {
 	if (a && b) {
 		const keysA = Object.keys(a).sort()
@@ -98,16 +98,16 @@ const objectsAreEqual = <T>(a: T, b: T): boolean => {
 
 /**
  *
- * 去除对象数组中的重复对象，递归深度比较且提供更好的鲁棒性
- * // > 去重时，对象的属性顺序发生变化时仍然可以比较，{foo: 1, bar: 2} 和 {bar: 2, foo: 1} 算作相同的对象，性能降低
+ * Remove duplicate objects from object arrays with recursive deep comparison and better robustness
+ * // > When deduplicating, objects with changed property order can still be compared, {foo: 1, bar: 2} and {bar: 2, foo: 1} are treated as the same object, performance decreases
  * BY: ChatGPT-4, 02
  *
- * @param array 被去重的数组
- * @returns 去重完成的数组
+ * @param array Array to be deduplicated
+ * @returns Deduplicated array
  */
 export const removeDuplicateObjectsInDeepArrayAndDeepObjectStrong = <T>(inputArray: NestedArray<T>): T[] => {
 	try {
-		// 将输入数组扁平化为一维数组
+		// Flatten the input array into a one-dimensional array
 		const flattenArray = <T>(arr: NestedArray<T>): T[] => {
 			if (!Array.isArray(arr)) {
 				return [arr]
@@ -118,7 +118,7 @@ export const removeDuplicateObjectsInDeepArrayAndDeepObjectStrong = <T>(inputArr
 			}, [])
 		}
 
-		// 去除重复的对象
+		// Remove duplicate objects
 		const removeDuplicates = <T>(arr: T[]): T[] => {
 			return arr.filter((value, index, self) => {
 				return self.findIndex(item => objectsAreEqual<T>(item, value)) === index
@@ -139,23 +139,23 @@ export const removeDuplicateObjectsInDeepArrayAndDeepObjectStrong = <T>(inputArr
 }
 
 /**
- * 去重合并两个对象数组
+ * Merge and deduplicate two object arrays
  * BY: ChatGPT-4, 02
  *
- * @param arr1 要合并的第一个对象数组
- * @param arr2 要合并的第二个对象数组
+ * @param arr1 First object array to merge
+ * @param arr2 Second object array to merge
  *
- * @returns 合并后的新对象数组，包含去重处理
+ * @returns New merged object array with deduplication processing
  */
 export const mergeAndDeduplicateObjectArrays = <T>(arr1: T[], arr2: T[]): T[] => {
 	try {
-		// 检查数组是否为空
+		// Check if arrays are empty
 		if (arr1 || arr2) {
-			// 处理空数组情况
+			// Handle empty array cases
 			if (arr1 === undefined || arr1 === null) return arr2
 			if (arr2 === undefined || arr2 === null) return arr1
 
-			// 合并数组并去重
+			// Merge arrays and deduplicate
 			const mergedArray: T[] = [...arr1, ...arr2]
 			const uniqueArray: T[] = []
 

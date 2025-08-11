@@ -1,15 +1,15 @@
 import EmailTemplate from "./EmailTemplate.js";
 
-// 语言文件
-import English from "../locales/English.js"; // 英语
-import ChineseSimplified from "../locales/Chinese Simplified.js"; // 简体中文
-import French from "../locales/French.js"; // 法语
-import Japanese from "../locales/Japanese.js"; // 日语
-import Cantonese from "../locales/Cantonese.js"; // 粤语
-import Indonesian from "../locales/Indonesian.js"; // 印尼语
-import Korean from "../locales/Korean.js"; // 韩语
-import ChineseTraditional from "../locales/Chinese Traditional.js"; // 繁体中文
-import Vietnamese from "../locales/Vietnamese.js"; // 越南语
+// Language files
+import English from "../locales/English.js"; // English
+import ChineseSimplified from "../locales/Chinese Simplified.js"; // Simplified Chinese
+import French from "../locales/French.js"; // French
+import Japanese from "../locales/Japanese.js"; // Japanese
+import Cantonese from "../locales/Cantonese.js"; // Cantonese
+import Indonesian from "../locales/Indonesian.js"; // Indonesian
+import Korean from "../locales/Korean.js"; // Korean
+import ChineseTraditional from "../locales/Chinese Traditional.js"; // Traditional Chinese
+import Vietnamese from "../locales/Vietnamese.js"; // Vietnamese
 
 
 const languagePacks = {
@@ -25,10 +25,10 @@ const languagePacks = {
 };
 
 /**
- * 判断客户端的语言并返回对应的语言包
- * @param clientLanguage 客户端的语言
- * @param targetMail 目标邮件
- * @returns 对应的语言包内容或 null
+ * Determine the client's language and return the corresponding language pack
+ * @param clientLanguage Client's language
+ * @param targetMail Target email
+ * @returns Corresponding language pack content or null
  */
 export const getI18nLanguagePack = (clientLanguage: string, targetMail: string) => {
 	const languagePack = languagePacks[clientLanguage as keyof typeof languagePacks] ?? English;

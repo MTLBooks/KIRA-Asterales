@@ -1,9 +1,9 @@
 import mongoose, { ClientSession } from "mongoose"
 
 /**
- * 创建并启动事务
- * @returns 一个已经启动的事务
- * @throws error 创建或启动事务失败
+ * Create and start a transaction
+ * @returns A transaction that has already been started
+ * @throws error Failed to create or start transaction
  */
 export const createAndStartSession = async (): Promise<ClientSession> => {
 	try {
@@ -11,14 +11,14 @@ export const createAndStartSession = async (): Promise<ClientSession> => {
 		session.startTransaction()
 		return session
 	} catch (error) {
-		throw new Error('启动 MongoDB Session 失败', error)
+		throw new Error('Failed to start MongoDB Session', error)
 	}
 }
 
 /**
- * 回滚并结束事务
- * @param session 事务 session
- * @returns 成功回滚并结束事务返回 true，否则返回 false
+ * Rollback and end transaction
+ * @param session Transaction session
+ * @returns Returns true if successfully rolled back and ended transaction, otherwise returns false
  */
 export const abortAndEndSession = async (session: ClientSession): Promise<boolean> => {
 	if (!session) {
@@ -35,9 +35,9 @@ export const abortAndEndSession = async (session: ClientSession): Promise<boolea
 }
 
 /**
- * 提交并结束事务
- * @param session 事务 session
- * @returns 成功提交并结束事务返回 true，否则返回 false
+ * Commit and end transaction
+ * @param session Transaction session
+ * @returns Returns true if successfully committed and ended transaction, otherwise returns false
  */
 export const commitAndEndSession = async (session: ClientSession): Promise<boolean> => {
 	if (!session) {

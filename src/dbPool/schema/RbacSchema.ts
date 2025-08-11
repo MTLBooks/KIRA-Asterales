@@ -3,81 +3,81 @@ import { Schema } from 'mongoose'
 /**
  * KIRAKIRA RBAC
  * 
- * KIRAKIRA RBAC 原子化权限控制的最小单位是 API 路径。
- * * 一个用户可以拥有多个角色
- * * 一个角色可以对应多位用户
- * * 一个角色可以拥有对多个 API 的访问权限
- * * 一个 API 可以对应多个角色
+ * KIRAKIRA RBAC atomic permission control's smallest unit is API path.
+ * * A user can have multiple roles
+ * * A role can correspond to multiple users
+ * * A role can have access permissions to multiple APIs
+ * * An API can correspond to multiple roles
  */
 
 /**
- * API 路径的列表
- * KIRAKIRA RBAC 原子化权限控制的最小单位，即精确控制每个 API 接口的访问权限
+ * API path list
+ * KIRAKIRA RBAC atomic permission control's smallest unit, which precisely controls access permissions for each API interface
  */
 class RbacApiSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** API 路径的 UUID - 非空 - 唯一 */
+		/** API path UUID - non-null - unique */
 		apiPathUuid: { type: String, required: true, unique: true },
-		/** API 路径 - 非空 - 唯一 */
+		/** API path - non-null - unique */
 		apiPath: { type: String, required: true, unique: true },
-		/** API 路径的类型 */
+		/** API path type */
 		apiPathType: { type: String },
-		/** API 路径的颜色 */
+		/** API path color */
 		apiPathColor: { type: String },
-		/** API 路径的描述 */
+		/** API path description */
 		apiPathDescription: { type: String },
-		/** API 路径创建者 - 非空 */
+		/** API path creator - non-null */
 		creatorUuid: { type: String, required: true },
-		/** API 路径最后更新者 - 非空 */
+		/** API path last updater - non-null */
 		lastEditorUuid: { type: String, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'rbac-api-list'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const RbacApiSchema = new RbacApiSchemaFactory()
 
 /**
- * RBAC 角色
+ * RBAC Role
  * 
- * 一个用户可以拥有多个角色
- * 一个角色可以对应多位用户
- * 一个角色可以拥有对多个 API 的访问权限
- * 一个 API 可以对应多个角色
+ * A user can have multiple roles
+ * A role can correspond to multiple users
+ * A role can have access permissions to multiple APIs
+ * An API can correspond to multiple roles
  */
 class RbacRoleSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 角色的 UUID */
+		/** Role UUID */
 		roleUuid: { type: String, required: true, unique: true },
-		/** 角色的名字 */
+		/** Role name */
 		roleName: { type: String, required: true, unique: true },
-		/** 角色的类型 */
+		/** Role type */
 		roleType: { type: String },
-		/** 角色的颜色 */
+		/** Role color */
 		roleColor: { type: String },
-		/** 角色的描述 */
+		/** Role description */
 		roleDescription: { type: String },
-		/** 这个角色有哪些 API 路径的访问权 */
+		/** Which API path access permissions this role has */
 		apiPathPermissions: { type: [String], required: true },
-		/** API 路径创建者 - 非空 */
+		/** API path creator - non-null */
 		creatorUuid: { type: String, required: true },
-		/** API 路径最后更新者 - 非空 */
+		/** API path last updater - non-null */
 		lastEditorUuid: { type: String, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'rbac-role'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const RbacRoleSchema = new RbacRoleSchemaFactory()

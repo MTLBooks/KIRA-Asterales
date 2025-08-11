@@ -1,45 +1,45 @@
 import { Schema } from 'mongoose';
 
 /**
- * 用户屏蔽数据
+ * User block data
  */
 class BlockListSchemaFactory {
 	schema = {
-		/** 黑名单类型 - 非空 */
+		/** Blacklist type - non-null */
 		type: { type: String, required: true },
-		/** 黑名单内容 - 非空 */
+		/** Blacklist content - non-null */
 		value: { type: String, required: true },
-		/** 创建者 UID - 非空 */
+		/** Creator UID - non-null */
 		operatorUid: { type: Number, required: true },
-		/** 创建者 UUID - 非空 */
+		/** Creator UUID - non-null */
 		operatorUUID: { type: String, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true, index: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'blocklist'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const BlockListSchema = new BlockListSchemaFactory()
 
 /**
- * 用户取消屏蔽数据
+ * User unblock data
  */
 class UnblockListSchemaFactory {
 	schema = {
-		/** 原来屏蔽的合集 */
+		/** Originally blocked collection */
 		...BlockListSchema.schema,
-		/** 操作者 UUID - 非空 */
+		/** Operator UUID - non-null */
 		_operatorUUID_: { type: String, required: true },
-		/** 操作者 UID - 非空 */
+		/** Operator UID - non-null */
 		_operatorUid_: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		createDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'unblocklist'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UnblockListSchema = new UnblockListSchemaFactory()

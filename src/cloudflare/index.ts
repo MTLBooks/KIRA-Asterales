@@ -4,11 +4,11 @@ import axios from 'axios'
 import { getCloudflareRFC3339ExpiryDateTime } from '../common/GetCloudflareRFC3339ExpiryDateTime.js'
 
 /**
- * 生成一个预签名 URL，该 URL 可以用于向 Cloudflare R2 存储上传数据
- * @param bucketName 目标存储桶名字
- * @param fileName 文件名字，注意：是文件上传到 Cloudflare R2 之后的名字，不是要上传的文件名字
- * @param expiresIn 预签名 URL 的有效期限，单位：秒。默认 3600 秒
- * @returns Cloudflare R2 预签名 URL
+ * Generate a pre-signed URL that can be used to upload data to Cloudflare R2 storage
+ * @param bucketName Target bucket name
+ * @param fileName File name, note: this is the name after the file is uploaded to Cloudflare R2, not the name of the file to be uploaded
+ * @param expiresIn Expiry duration of the pre-signed URL, unit: seconds. Default 3600 seconds
+ * @returns Cloudflare R2 pre-signed URL
  */
 export const createCloudflareR2PutSignedUrl = async (bucketName: string, fileName: string, expiresIn: number = 3600): Promise<string | undefined> => {
 	const r2EndPoint = process.env.CF_R2_END_POINT
@@ -16,17 +16,17 @@ export const createCloudflareR2PutSignedUrl = async (bucketName: string, fileNam
 	const secretAccessKey = process.env.CF_SECRET_ACCESS_KEY
 
 	if (expiresIn <= 0) {
-		console.error('ERROR', '无法创建 R2 预签名 URL, 过期时间必须大于等于 0 秒 ', { bucketName, fileName, expiresIn })
+		console.error('ERROR', 'Cannot create R2 pre-signed URL, expiry time must be greater than or equal to 0 seconds', { bucketName, fileName, expiresIn })
 		return undefined
 	}
 
 	if (expiresIn > 604800) {
-		console.error('ERROR', '无法创建 R2 预签名 URL, 过期时间必须大于等于 604800 秒（七天）', { bucketName, fileName, expiresIn })
+		console.error('ERROR', 'Cannot create R2 pre-signed URL, expiry time must be less than or equal to 604800 seconds (7 days)', { bucketName, fileName, expiresIn })
 		return undefined
 	}
 
 	if (!r2EndPoint && !accessKeyId && !secretAccessKey) {
-		console.error('ERROR', '无法创建 S3(R2) 存储桶实例，必要的参数： r2EndPoint, accessKeyId 和 secretAccessKey 可能为空。', { bucketName, fileName, expiresIn })
+		console.error('ERROR', 'Cannot create S3(R2) bucket instance, required parameters: r2EndPoint, accessKeyId and secretAccessKey may be empty.', { bucketName, fileName, expiresIn })
 		return undefined
 	}
 
@@ -41,7 +41,7 @@ export const createCloudflareR2PutSignedUrl = async (bucketName: string, fileNam
 		})
 
 		if (!R2) {
-			console.error('ERROR', '创建的 R2 客户端为空', { bucketName, fileName, expiresIn })
+			console.error('ERROR', 'Created R2 client is empty', { bucketName, fileName, expiresIn })
 			return undefined
 		}
 
@@ -56,7 +56,7 @@ export const createCloudflareR2PutSignedUrl = async (bucketName: string, fileNam
 			)
 
 			if (!url) {
-				console.error('ERROR', '创建的预签名 URL 为空', { bucketName, fileName, expiresIn })
+				console.error('ERROR', 'Created pre-signed URL is empty', { bucketName, fileName, expiresIn })
 				R2.destroy()
 				return undefined
 			}
@@ -64,22 +64,22 @@ export const createCloudflareR2PutSignedUrl = async (bucketName: string, fileNam
 			R2.destroy()
 			return url
 		} catch (error) {
-			console.error('ERROR', '创建预签名 URL 失败，错误信息：', error, { bucketName, fileName, expiresIn })
+			console.error('ERROR', 'Failed to create pre-signed URL, error message:', error, { bucketName, fileName, expiresIn })
 			R2.destroy()
 			return undefined
 		}
 	} catch (error) {
-		console.error('ERROR', '连接 S3(R2) 存储桶或创建预签名 URL 失败，错误信息：', error, { bucketName, fileName, expiresIn })
+		console.error('ERROR', 'Failed to connect to S3(R2) bucket or create pre-signed URL, error message:', error, { bucketName, fileName, expiresIn })
 		return undefined
 	}
 }
 
 /**
- * 生成一个预签名 URL，该 URL 可以用于向 Cloudflare Images 上传图片
- * @param fileName 图片名字，注意：是文件上传到 R2 之后的名字，不是要上传的文件名字，不要求文件后缀名，建议文件名使用 URL 友好字符
- * @param expiresIn 预签名 URL 的有效期限，单位：秒。默认 660秒（11 分钟），最小 600（10 分钟），最大 21600（360 分钟，6 小时）
- * @param metaData 图片元数据
- * @returns 预签名 URL，该 URL 可以用于向 Cloudflare Images 上传图片
+ * Generate a pre-signed URL that can be used to upload images to Cloudflare Images
+ * @param fileName Image name, note: this is the name after the file is uploaded to R2, not the name of the file to be uploaded, file extension not required, recommend using URL-friendly characters for filename
+ * @param expiresIn Expiry duration of the pre-signed URL, unit: seconds. Default 660 seconds (11 minutes), minimum 600 (10 minutes), maximum 21600 (360 minutes, 6 hours)
+ * @param metaData Image metadata
+ * @returns Pre-signed URL that can be used to upload images to Cloudflare Images
  */
 export const createCloudflareImageUploadSignedUrl = async (fileName?: string, expiresIn: number = 660, metaData?: Record<string, string>): Promise<string | undefined> => {
 	try {
@@ -87,27 +87,27 @@ export const createCloudflareImageUploadSignedUrl = async (fileName?: string, ex
 		const imagesToken = process.env.CF_IMAGES_TOKEN
 
 		if (expiresIn < 600) {
-			console.error('ERROR', '无法创建 Cloudflare Images 预签名 URL, 过期时间必须大于等于 120 秒 （2 分钟）', { fileName, expiresIn, metaData })
+			console.error('ERROR', 'Cannot create Cloudflare Images pre-signed URL, expiry time must be greater than or equal to 120 seconds (2 minutes)', { fileName, expiresIn, metaData })
 			return undefined
 		}
 
 		if (expiresIn > 21600) {
-			console.error('ERROR', '无法创建 Cloudflare Images 预签名 URL, 过期时间必须大于等于 21600 秒（360 分钟，6 小时）', { fileName, expiresIn, metaData })
+			console.error('ERROR', 'Cannot create Cloudflare Images pre-signed URL, expiry time must be less than or equal to 21600 seconds (360 minutes, 6 hours)', { fileName, expiresIn, metaData })
 			return undefined
 		}
 
 		if (!imagesEndpointUrl && !imagesToken) {
-			console.error('ERROR', '无法创建 Cloudflare Images 预签名 URL： imagesEndpointUrl 和 imagesToken 可能为空。请检查环境变量设置（CF_IMAGES_ENDPOINT_URL, CF_IMAGES_TOKEN）', { fileName, expiresIn, metaData })
+			console.error('ERROR', 'Cannot create Cloudflare Images pre-signed URL: imagesEndpointUrl and imagesToken may be empty. Please check environment variable settings (CF_IMAGES_ENDPOINT_URL, CF_IMAGES_TOKEN)', { fileName, expiresIn, metaData })
 			return undefined
 		}
 
-		// 创建 Axios 请求数据
+		// Create Axios request data
 		const data: Record<string, string | Record<string, string> > = {}
-		data.expiry = getCloudflareRFC3339ExpiryDateTime(expiresIn) // 生成的日期格式为：2024-03-17T13:47:28Z
+		data.expiry = getCloudflareRFC3339ExpiryDateTime(expiresIn) // Generated date format: 2024-03-17T13:47:28Z
 		fileName && (data.id = fileName)
 		metaData && (data.metaData = metaData)
 
-		// 创建 Axios 请求配置
+		// Create Axios request configuration
 		const config = {
 			headers: {
 				Authorization: `Bearer ${imagesToken}`,
@@ -120,14 +120,14 @@ export const createCloudflareImageUploadSignedUrl = async (fileName?: string, ex
 			if (imageUploadSignedUrlResult.status === 200 && imageUploadSignedUrl) {
 				return imageUploadSignedUrl
 			} else {
-				console.error('ERROR', '无法创建 Cloudflare Images 预签名 URL：未能创建 URL！', { fileName, expiresIn, metaData })
+				console.error('ERROR', 'Cannot create Cloudflare Images pre-signed URL: Failed to create URL!', { fileName, expiresIn, metaData })
 				return undefined
 			}
 		} catch (error) {
-			console.error('ERROR', '无法创建 Cloudflare Images 预签名 URL：网络请求失败！', { error, errorDetail: error?.response?.data?.errors }, { fileName, expiresIn, metaData })
+			console.error('ERROR', 'Cannot create Cloudflare Images pre-signed URL: Network request failed!', { error, errorDetail: error?.response?.data?.errors }, { fileName, expiresIn, metaData })
 			return undefined
 		}
 	} catch (error) {
-		console.error('ERROR', '创建 Cloudflare Images 上传预签名 URL 失败：', error)
+		console.error('ERROR', 'Failed to create Cloudflare Images upload pre-signed URL:', error)
 	}
 }

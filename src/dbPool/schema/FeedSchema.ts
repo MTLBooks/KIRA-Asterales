@@ -1,81 +1,81 @@
 import { Schema } from 'mongoose'
 
 /**
- * 用户关注数据
+ * User following data
  */
 class FollowingSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 关注者 UUID - 非空 */
+		/** Follower UUID - non-null */
 		followerUuid: { type: String, required: true },
-		/** 被关注者 UUID - 非空 */
+		/** Following UUID - non-null */
 		followingUuid: { type: String, required: true },
-		/** 关注类型 - 非空 - 可选值：'normal', 'auto', 'event', 'eventAutoBatch' */
+		/** Following type - non-null - optional values: 'normal', 'auto', 'event', 'eventAutoBatch' */
 		followingType: { type: String, enum: ['normal', 'auto', 'event', 'eventAutoBatch'],  required: true },
-		/** 是否是特别关心 - 非空 */
+		/** Whether it's a favorite - non-null */
 		isFavorite: { type: Boolean, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		followingEditDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		followingCreateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'following'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const FollowingSchema = new FollowingSchemaFactory()
 
 /**
- * 用户取消关注数据
+ * User unfollowing data
  */
 class UnfollowingSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 原始关注数据，继承自 FollowingSchema */
+		/** Original following data, inherited from FollowingSchema */
 		...FollowingSchema.schema,
-		/** 取消关注原因类型 - 非空 */
+		/** Unfollowing reason type - non-null */
 		unfollowingReasonType: { type: String, request: true },
-		/** 用户取消关注的日期 - 非空 */
+		/** Date when user unfollowed - non-null */
 		unfollowingDateTime: { type: Number, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		unfollowingEditDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		unfollowingCreateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'unfollowing'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const UnfollowingSchema = new UnfollowingSchemaFactory()
 
 /**
- * 用户创建的动态分组
+ * User created feed groups
  */
 class FeedGroupSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 动态分组的 UUID - 非空 */
+		/** Feed group UUID - non-null */
 		feedGroupUuid: { type: String, required: true },
-		/** 动态分组的名称 - 非空 */
+		/** Feed group name - non-null */
 		feedGroupName: { type: String, required: true },
-		/** 动态分组创建者 UUID - 非空 */
+		/** Feed group creator UUID - non-null */
 		feedGroupCreatorUuid: { type: String, required: true },
-		/** 动态分组中的用户 - 非空 */
+		/** Users in feed group - non-null */
 		uuidList: { type: [String], required: true },
-		/** 动态分组的自定义封面 */
+		/** Feed group custom cover */
 		customCover: { type: String },
-		/** 是否在上一次审核通过后修改了动态分组的信息 - 非空 - 当第一次创建用户信息以及发生了更新后需要设为 true，当管理员通过审核时时将其改为 false */
+		/** Whether feed group information was modified after last review approval, should be set to true when first creating and when updates occur, should be changed to false when admin approves */
 		isUpdatedAfterReview: { type: Boolean, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
-		/** 系统专用字段-创建时间 - 非空 */
+		/** System field - creation time - non-null */
 		createDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'feed-group'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const FeedGroupSchema = new FeedGroupSchemaFactory()

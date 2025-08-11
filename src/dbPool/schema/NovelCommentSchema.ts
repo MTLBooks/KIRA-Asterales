@@ -3,8 +3,8 @@ import { Schema } from 'mongoose'
 /**
  * Sub-comment ID stored in parent comment or sub-comment
  */
-const VideoSubCommentIdSchema = {
-	/** Comment route - non-null */ /** e.g.: 1.2.3 (first video's second comment's third sub-reply) */
+const NovelSubCommentIdSchema = {
+	/** Comment route - non-null */ /** e.g.: 1.2.3 (first novel's second comment's third sub-reply) */
 	commentRoute: { type: String, required: true },
 	/** Comment ID - non-null */
 	upvoteCount: { type: String, default: 0, required: true },
@@ -13,17 +13,17 @@ const VideoSubCommentIdSchema = {
 }
 
 // /**
-//  * Video sub-comment, not just first-level sub-comment
+//  * Novel sub-comment, not just first-level sub-comment
 //  */
-// export const VideoSubCommentSchema = {
+// export const NovelSubCommentSchema = {
 // 	/** MongoDB Schema */
 // 	schema: {
-// 		/** Comment route - non-null */ /** e.g.: 1.2.3 (first video's second comment's third sub-reply) */
+// 		/** Comment route - non-null */ /** e.g.: 1.2.3 (first novel's second comment's third sub-reply) */
 // 		commentRoute: { type: String, required: true },
 // 		/** Parent comment ID */
 // 		parentCommentsId: { type: String, required: true },
-// 		/** KVID video ID - non-null */
-// 		videoId: { type: Number, required: true },
+// 		/** Novel ID - non-null */
+// 		novelId: { type: Number, required: true },
 // 		/** Comment sender's user UID - non-null */
 // 		uid: { type: Number, required: true },
 // 		/** Comment send time - non-null */
@@ -37,26 +37,26 @@ const VideoSubCommentIdSchema = {
 // 		/** Comment floor number - non-null */
 // 		commentIndex: { type: Number, required: true },
 // 		/** Sub-comments */
-// 		subComments: [VideoSubCommentIdSchema],
+// 		subComments: [NovelSubCommentIdSchema],
 // 		/** Next level sub-comment count for this comment */
 // 		subCommentsCount: { type: Number, required: true },
 // 		/** System field - last edit time - non-null */
 // 		editDateTime: { type: Number, required: true },
 // 	},
 // 	/** MongoDB collection name */
-// 	collectionName: 'video-sub-comment',
+// 	collectionName: 'novel-sub-comment',
 // }
 
 /**
- * Video comment data
+ * Novel comment data
  */
-class VideoCommentSchemaFactory {
+class NovelCommentSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** Comment route - non-null - unique */ /** e.g.: 1.2.3 (first video's second comment's third sub-reply) */
+		/** Comment route - non-null - unique */ /** e.g.: 1.2.3 (first novel's second comment's third sub-reply) */
 		commentRoute: { type: String, required: true, unique: true },
-		/** KVID video ID - non-null */
-		videoId: { type: Number, required: true },
+		/** Novel ID - non-null */
+		novelId: { type: Number, required: true },
 		/** Comment sender's UUID - non-null */
 		UUID: { type: String, required: true },
 		/** Comment sender's UID - non-null */
@@ -72,47 +72,47 @@ class VideoCommentSchemaFactory {
 		/** Comment floor number - non-null */
 		commentIndex: { type: Number, required: true },
 		/** Sub-comments */
-		subComments: [VideoSubCommentIdSchema],
+		subComments: [NovelSubCommentIdSchema],
 		/** Next level sub-comment count for this comment */
 		subCommentsCount: { type: Number, required: true },
 		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
 	/** MongoDB collection name */
-	collectionName = 'video-comment'
+	collectionName = 'novel-comment'
 	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
-export const VideoCommentSchema = new VideoCommentSchemaFactory()
+export const NovelCommentSchema = new NovelCommentSchemaFactory()
 
 /**
- * Removed video comment data
+ * Removed novel comment data
  */
-class RemovedVideoCommentSchemaFactory {
+class RemovedNovelCommentSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** Original video comment data collection */
-		...VideoCommentSchema.schema,
+		/** Original novel comment data collection */
+		...NovelCommentSchema.schema,
 		/** Operator UUID - non-null */
 		_operatorUUID_: { type: String, required: true },
 		/** Operator UID - non-null */
 		_operatorUid_: { type: Number, required: true },
 	}
 	/** MongoDB collection name */
-	collectionName = 'removed-video-comment'
+	collectionName = 'removed-novel-comment'
 	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
-export const RemovedVideoCommentSchema = new RemovedVideoCommentSchemaFactory()
+export const RemovedNovelCommentSchema = new RemovedNovelCommentSchemaFactory()
 
 /**
- * Video comment upvote
+ * Novel comment upvote
  */
-class VideoCommentUpvoteSchemaFactory {
+class NovelCommentUpvoteSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** KVID video ID - non-null */
-		videoId: { type: Number, required: true },
+		/** Novel ID - non-null */
+		novelId: { type: Number, required: true },
 		/** Comment ID - non-null */
 		commentId: { type: String, required: true },
 		/** Comment upvoter's UUID - non-null */
@@ -127,21 +127,21 @@ class VideoCommentUpvoteSchemaFactory {
 		editDateTime: { type: Number, required: true },
 	}
 	/** MongoDB collection name */
-	collectionName = 'video-comment-upvote'
+	collectionName = 'novel-comment-upvote'
 	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
-export const VideoCommentUpvoteSchema = new VideoCommentUpvoteSchemaFactory()
+export const NovelCommentUpvoteSchema = new NovelCommentUpvoteSchemaFactory()
 
 
 /**
- * Video comment downvote
+ * Novel comment downvote
  */
-class VideoCommentDownvoteSchemaFactory {
+class NovelCommentDownvoteSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** KVID video ID - non-null */
-		videoId: { type: Number, required: true },
+		/** Novel ID - non-null */
+		novelId: { type: Number, required: true },
 		/** Comment ID - non-null */
 		commentId: { type: String, required: true },
 		/** Comment downvoter's UUID - non-null */
@@ -156,9 +156,9 @@ class VideoCommentDownvoteSchemaFactory {
 		editDateTime: { type: Number, required: true },
 	}
 	/** MongoDB collection name */
-	collectionName = 'video-comment-downvote'
+	collectionName = 'novel-comment-downvote'
 	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 
-export const VideoCommentDownvoteSchema = new VideoCommentDownvoteSchemaFactory()
+export const NovelCommentDownvoteSchema = new NovelCommentDownvoteSchemaFactory() 

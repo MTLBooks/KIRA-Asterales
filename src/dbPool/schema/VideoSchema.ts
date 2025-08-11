@@ -1,118 +1,118 @@
 import { Schema } from 'mongoose'
 
 /**
- * 分P 视频的数据
+ * Part P video data
  */
 const VideoPartSchema = {
-	/** 分P 视频的顺序 - 非空 */
+	/** Part P video order - non-null */
 	id: { type: Number, required: true },
-	/** 每 P 视频的标题 - 非空 */
+	/** Each P video title - non-null */
 	videoPartTitle: { type: String, required: true },
-	/** 每 P 视频的链接 - 非空 */
+	/** Each P video link - non-null */
 	link: { type: String, required: true },
-	/** 系统专用字段-最后编辑时间 - 非空 */
+	/** System field - last edit time - non-null */
 	editDateTime: { type: Number, required: true },
 }
 
 const VideoTagNameSchema = {
-	/** TAG 名称 - 非空 */
+	/** TAG name - non-null */
 	name: { type: String, required: true },
-	/** 是否为该语言默认名 - 非空 */
+	/** Whether it's the default name for this language - non-null */
 	isDefault: { type: Boolean, required: true },
-	/** 是否为 TAG 原名 - 非空 */
+	/** Whether it's the original TAG name - non-null */
 	isOriginalTagName: { type: Boolean, required: false },
 }
 
 /**
- * 不同语言所对应的 TAG 名
+ * TAG names corresponding to different languages
  */
 const MultilingualVideoTagNameSchema = {
-	/** TAG 的语言 - 非空，原则上应该唯一 // WARN: 无法指定指定子文档的唯一索引，只能在业务上避免并做校验 */
+	/** TAG language - non-null, should be unique in principle // WARN: Cannot specify unique index for sub-documents, can only avoid in business logic and do validation */
 	lang: { type: String, required: true },
-	/** 不同语言所对应的 TAG 名 */
+	/** TAG names corresponding to different languages */
 	tagName: { type: [VideoTagNameSchema], required: true },
 }
 
 /**
- * 视频 TAG 数据
+ * Video TAG data
  */
 const VideoTagSchema = {
-	/** TAG ID - 非空，唯一 */
+	/** TAG ID - non-null, unique */
 	tagId: { type: Number, required: true },
-	/** 不同语言所对应的 TAG 名 */
+	/** TAG names corresponding to different languages */
 	tagNameList: { type: [MultilingualVideoTagNameSchema], required: true },
-	/** 系统专用字段-最后编辑时间 - 非空 */
+	/** System field - last edit time - non-null */
 	editDateTime: { type: Number, required: true },
 }
 
 /**
- * 视频数据
+ * Video data
  */
 class VideoSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** KVID 视频 ID - 非空 - 唯一 */
+		/** KVID video ID - non-null - unique */
 		videoId: { type: Number, unique: true, required: true },
-		/** 视频标题 - 非空 */
+		/** Video title - non-null */
 		title: { type: String, required: true },
-		/** 分 P 视频的数据 - 非空 */
+		/** Part P video data - non-null */
 		videoPart: { type: [VideoPartSchema], required: true },
-		/** 封面图链接 - 非空 */
+		/** Cover image link - non-null */
 		image: { type: String, required: true },
-		/** 视频上传的日期，时间戳格式 - 非空 */
+		/** Video upload date, timestamp format - non-null */
 		uploadDate: { type: Number, required: true },
-		/** 视频播放量 - 非空 */
+		/** Video view count - non-null */
 		watchedCount: { type: Number, required: true },
-		/** 创作者 UUID - 非空 */
+		/** Creator UUID - non-null */
 		uploaderUUID: { type: String, required: true },
-		/** 创作者 UID - 非空 */
+		/** Creator UID - non-null */
 		uploaderId: { type: Number, required: true },
-		/** 视频时长，单位 ms - 非空 */
+		/** Video duration, unit ms - non-null */
 		duration: { type: Number, required: true },
-		/** 视频描述 */
+		/** Video description */
 		description: String,
-		/** 视频分区 - 非空 */
+		/** Video category - non-null */
 		videoCategory: { type: String, required: true },
-		/** 视频版权 - 非空 */
+		/** Video copyright - non-null */
 		copyright: { type: String, required: true },
-		/** 原作者 */
+		/** Original author */
 		originalAuthor: { type: String, required: false },
-		/** 原视频链接 */
+		/** Original video link */
 		originalLink: { type: String, required: false },
-		/** 是否发布到动态 - 非空 */
+		/** Whether to publish to feed - non-null */
 		pushToFeed: { type: Boolean, required: true },
-		/** 声明为原创 - 非空 */
+		/** Declare as original - non-null */
 		ensureOriginal: { type: Boolean, required: true },
-		/** 视频 TAG - 非空 */
+		/** Video TAG - non-null */
 		videoTagList: { type: [VideoTagSchema], required: true },
-		/** 是否待审核 - 非空 */
+		/** Whether pending review - non-null */
 		pendingReview: { type: Boolean, required: true },
-		/** 系统专用字段-最后编辑时间 - 非空 */
+		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'video'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const VideoSchema = new VideoSchemaFactory()
 
 /**
- * 已删除的视频数据表
+ * Removed video data table
  */
 class RemovedVideoSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
-		/** 原来的视频数据集合 */
+		/** Original video data collection */
 		...VideoSchema.schema,
-		/** 操作者 UUID - 非空 */
+		/** Operator UUID - non-null */
 		_operatorUUID_: { type: String, required: true },
-		/** 操作者 UID - 非空 */
+		/** Operator UID - non-null */
 		_operatorUid_: { type: Number, required: true },
 	}
-	/** MongoDB 集合名 */
+	/** MongoDB collection name */
 	collectionName = 'removed-video'
-	/** Mongoose Schema 实例 */
+	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
 export const RemovedVideoSchema = new RemovedVideoSchemaFactory()

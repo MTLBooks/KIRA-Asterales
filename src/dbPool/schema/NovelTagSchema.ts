@@ -1,6 +1,6 @@
 import { Schema } from 'mongoose'
 
-const VideoTagNameSchema = {
+const NovelTagNameSchema = {
 	/** TAG name - non-null */
 	name: { type: String, required: true, unique: true },
 	/** Whether it's the default name for this language - non-null */
@@ -12,29 +12,29 @@ const VideoTagNameSchema = {
 /**
  * TAG names corresponding to different languages
  */
-const MultilingualVideoTagNameSchema = {
+const MultilingualNovelTagNameSchema = {
 	/** TAG language - non-null, should be unique in principle // WARN: Cannot specify unique index for sub-documents, can only avoid in business logic and do validation */
 	lang: { type: String, required: true },
 	/** TAG names corresponding to different languages */
-	tagName: { type: [VideoTagNameSchema], required: true },
+	tagName: { type: [NovelTagNameSchema], required: true },
 }
 
 /**
- * Video TAG data
+ * Novel TAG data
  */
-class VideoTagSchemaFactory {
+class NovelTagSchemaFactory {
 	/** MongoDB Schema */
 	schema = {
 		/** TAG ID - non-null, unique */
 		tagId: { type: Number, required: true, unique: true },
 		/** TAG names corresponding to different languages */
-		tagNameList: { type: [MultilingualVideoTagNameSchema], required: true },
+		tagNameList: { type: [MultilingualNovelTagNameSchema], required: true },
 		/** System field - last edit time - non-null */
 		editDateTime: { type: Number, required: true },
 	}
 	/** MongoDB collection name */
-	collectionName = 'video-tag'
+	collectionName = 'novel-tag'
 	/** Mongoose Schema instance */
 	schemaInstance = new Schema(this.schema)
 }
-export const VideoTagSchema = new VideoTagSchemaFactory()
+export const NovelTagSchema = new NovelTagSchemaFactory() 
